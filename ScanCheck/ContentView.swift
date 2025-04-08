@@ -23,18 +23,20 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("Mes Chèques")
-            .toolbar {
-                // N'afficher le bouton d'appareil photo que si des chèques existent déjà
+            .toolbar(content: {
+                // Afficher un bouton plus élégant dans la barre d'outils lorsque des chèques existent
                 if !checks.isEmpty {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button(action: {
                             showingScannerSheet = true
                         }) {
-                            Label("Scanner un chèque", systemImage: "camera")
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.black)
                         }
                     }
                 }
-            }
+            })
             .sheet(isPresented: $showingScannerSheet) {
                 CheckScannerView()
             }
@@ -47,43 +49,6 @@ struct ContentView: View {
                 modelContext.delete(checks[index])
             }
         }
-    }
-}
-
-struct EmptyChecksView: View {
-    var onScanButtonTapped: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "doc.text.viewfinder")
-                .font(.system(size: 70))
-                .foregroundColor(.black)
-            
-            Text("Aucun chèque enregistré")
-                .font(.title2)
-                .fontWeight(.medium)
-            
-            Text("Scannez votre premier chèque pour commencer")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            Button(action: onScanButtonTapped) {
-                HStack {
-                    Image(systemName: "camera")
-                    Text("Scanner un chèque")
-                }
-                .font(.headline)
-                .padding()
-                .frame(minWidth: 200)
-                .background(Color.black)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-            }
-            .padding(.top, 10)
-        }
-        .padding()
     }
 }
 

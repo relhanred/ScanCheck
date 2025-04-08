@@ -1,20 +1,18 @@
 import SwiftUI
 import UIKit
-import VisionKit
-import Vision
 
 struct CheckScannerView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
+    @State private var showingImagePicker = false
     @State private var showingCamera = false
+    @State private var showingSourceOptions = false
     @State private var scannedImage: UIImage?
     @State private var issuerName = ""
     @State private var amount = ""
     @State private var checkNumber = ""
     @State private var notes = ""
-    @State private var recognizedText = ""
-    @State private var isProcessing = false
     
     var body: some View {
         NavigationStack {
@@ -35,27 +33,18 @@ struct CheckScannerView: View {
                                 .frame(height: 200)
                                 .overlay(
                                     VStack(spacing: 10) {
-                                        Image(systemName: "camera")
+                                        Image(systemName: "photo.on.rectangle")
                                             .font(.system(size: 40))
                                             .foregroundColor(.black)
                                         
-                                        Text("Prendre une photo du chèque")
+                                        Text("Ajouter une photo du chèque")
                                             .font(.headline)
                                     }
                                 )
                         }
-                        
-                        if isProcessing {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(1.5)
-                                .background(Color.white.opacity(0.7))
-                                .cornerRadius(10)
-                                .frame(width: 60, height: 60)
-                        }
                     }
                     .onTapGesture {
-                        showingCamera = true
+                        showingSourceOptions = true
                     }
                     
                     // Formulaire
@@ -92,10 +81,10 @@ struct CheckScannerView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Scanner un chèque")
+            .navigationTitle("Ajouter un chèque")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button("Annuler") {
                         dismiss()
                     }
@@ -104,8 +93,19 @@ struct CheckScannerView: View {
             .sheet(isPresented: $showingCamera) {
                 CameraView { image in
                     self.scannedImage = image
-                    self.recognizeText(from: image)
                 }
+            }
+            .sheet(isPresented: $showingImagePicker) {
+                ImagePicker(selectedImage: $scannedImage)
+            }
+            .confirmationDialog("Choisir une source", isPresented: $showingSourceOptions) {
+                Button("Prendre une photo") {
+                    showingCamera = true
+                }
+                Button("Importer depuis la galerie") {
+                    showingImagePicker = true
+                }
+                Button("Annuler", role: .cancel) {}
             }
         }
     }
@@ -130,80 +130,6 @@ struct CheckScannerView: View {
         
         modelContext.insert(newCheck)
         dismiss()
-    }
-    
-    private func recognizeText(from image: UIImage) {
-        isProcessing = true
-        
-        guard let cgImage = image.cgImage else {
-            isProcessing = false
-            return
-        }
-        
-        // Préparation de la requête pour Vision
-        let request = VNRecognizeTextRequest { request, error in
-            if let error = error {
-                print("Erreur de reconnaissance de texte: \(error)")
-                isProcessing = false
-                return
-            }
-            
-            guard let observations = request.results as? [VNRecognizedTextObservation] else {
-                isProcessing = false
-                return
-            }
-            
-            // Extraction du texte reconnu
-            let recognizedStrings = observations.compactMap { observation in
-                observation.topCandidates(1).first?.string
-            }
-            
-            DispatchQueue.main.async {
-                self.recognizedText = recognizedStrings.joined(separator: " ")
-                self.extractInformation(from: recognizedStrings)
-                self.isProcessing = false
-            }
-        }
-        
-        // Configuration supplémentaire pour optimiser la reconnaissance
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        
-        // Exécution de la demande de Vision
-        let requestHandler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        try? requestHandler.perform([request])
-    }
-    
-    private func extractInformation(from textLines: [String]) {
-        // Fonction pour extraire les informations pertinentes du texte reconnu
-        // Cette implémentation est basique et devrait être améliorée selon le format des chèques
-        
-        // Recherche de montants (format: chiffres avec virgule/point)
-        let amountRegex = try? NSRegularExpression(pattern: "(\\d+[,.]\\d{2})|(\\d+ ?€)", options: [])
-        
-        for line in textLines {
-            // Extraction du montant
-            if amount.isEmpty, let amountRegex = amountRegex {
-                let range = NSRange(location: 0, length: line.utf16.count)
-                if let match = amountRegex.firstMatch(in: line, options: [], range: range) {
-                    let matchedText = (line as NSString).substring(with: match.range)
-                    let cleanAmount = matchedText.replacingOccurrences(of: "€", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
-                    amount = cleanAmount
-                }
-            }
-            
-            // Essai de trouver le numéro de chèque (séquence de chiffres)
-            if checkNumber.isEmpty && line.contains("N°") {
-                let components = line.components(separatedBy: "N°")
-                if components.count > 1 {
-                    let potential = components[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                    let digitsOnly = potential.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
-                    if !digitsOnly.isEmpty {
-                        checkNumber = digitsOnly
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -235,6 +161,43 @@ struct CameraView: UIViewControllerRepresentable {
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
                 onImageCaptured(image)
+            }
+            picker.dismiss(animated: true)
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
+        }
+    }
+}
+
+// Structure simplifiée pour l'importation d'images depuis la photothèque
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.selectedImage = image
             }
             picker.dismiss(animated: true)
         }
