@@ -17,87 +17,113 @@ struct CheckFormView: View {
     @State private var showDatePicker = false
     
     // États pour la gestion des erreurs
-    @State private var showAmountError = false
+    @State private var amountError = false
     @State private var amountErrorMessage = ""
-    @State private var showCheckNumberError = false
+    @State private var checkNumberError = false
     @State private var checkNumberErrorMessage = ""
+    @State private var showValidationErrors = false // Nouvel état pour contrôler l'affichage des erreurs
     
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 15) { // Réduit l'espacement vertical
                     // Affichage de l'image capturée
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 200)
+                        .frame(height: 180) // Légèrement réduit
                         .cornerRadius(12)
                         .shadow(radius: 2)
-                        .padding()
+                        .padding(.horizontal)
+                        .padding(.top, 5)
                     
-                    // Formulaire
-                    VStack(spacing: 15) {
-                        // Montant (obligatoire mais peut être 0)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Montant (€)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.leading, 5)
-                            
-                            TextField("", text: $amount)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .keyboardType(.decimalPad)
-                                .onChange(of: amount) { oldValue, newValue in
-                                    validateAmount(newValue)
-                                }
-                            
-                            if showAmountError {
-                                Text(amountErrorMessage)
+                    // Formulaire redesigné
+                    VStack(spacing: 12) { // Espacement réduit entre les éléments
+                        // Première rangée: Montant et Banque
+                        HStack(alignment: .top, spacing: 10) {
+                            // Montant (obligatoire mais peut être 0)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Montant (€)*")
                                     .font(.caption)
-                                    .foregroundColor(.red)
-                                    .padding(.leading, 5)
+                                    .foregroundColor(.secondary)
+                                
+                                TextField("", text: $amount)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.decimalPad)
+                                    .onChange(of: amount) { oldValue, newValue in
+                                        validateAmount(newValue)
+                                    }
+                                
+                                if showValidationErrors && amountError {
+                                    Text(amountErrorMessage)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                }
                             }
-                        }
-                        
-                        // Banque
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Banque")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.leading, 5)
+                            .frame(maxWidth: .infinity)
                             
-                            TextField("", text: $bank)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            // Banque
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Banque")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                TextField("", text: $bank)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                            }
+                            .frame(maxWidth: .infinity)
                         }
                         
-                        // Ordre/Destinataire
-                        VStack(alignment: .leading, spacing: 5) {
+                        // Deuxième rangée: Destinataire
+                        VStack(alignment: .leading, spacing: 3) {
                             Text("À l'ordre de")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                                .padding(.leading, 5)
                             
                             TextField("", text: $recipient)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                         }
                         
-                        // Lieu
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Lieu")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.leading, 5)
+                        // Troisième rangée: Lieu et N° de chèque
+                        HStack(alignment: .top, spacing: 10) {
+                            // Lieu
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Lieu")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                TextField("", text: $place)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                            }
+                            .frame(maxWidth: .infinity)
                             
-                            TextField("", text: $place)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            // Numéro du chèque
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("N° chèque (7 chiffres)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                TextField("", text: $checkNumber)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.numberPad)
+                                    .onChange(of: checkNumber) { oldValue, newValue in
+                                        validateCheckNumber(newValue)
+                                    }
+                                
+                                if showValidationErrors && checkNumberError {
+                                    Text(checkNumberErrorMessage)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
                         }
                         
-                        // Date du chèque
-                        VStack(alignment: .leading, spacing: 5) {
+                        // Quatrième rangée: Date du chèque
+                        VStack(alignment: .leading, spacing: 3) {
                             Text("Date du chèque")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                                .padding(.leading, 5)
                             
                             Button(action: {
                                 withAnimation {
@@ -109,7 +135,7 @@ struct CheckFormView: View {
                                     Spacer()
                                     Image(systemName: "calendar")
                                 }
-                                .padding()
+                                .padding(8) // Padding réduit
                                 .background(Color.gray.opacity(0.1))
                                 .cornerRadius(8)
                             }
@@ -117,42 +143,19 @@ struct CheckFormView: View {
                             if showDatePicker {
                                 DatePicker("", selection: $checkDate, displayedComponents: .date)
                                     .datePickerStyle(.graphical)
-                                    .frame(maxHeight: 400)
-                                    .padding(.vertical)
+                                    .frame(maxHeight: 370) // Hauteur légèrement réduite
+                                    .padding(.vertical, 5) // Padding réduit
                             }
                         }
                         
-                        // Numéro du chèque
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Numéro du chèque (7 chiffres)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.leading, 5)
-                            
-                            TextField("", text: $checkNumber)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .keyboardType(.numberPad)
-                                .onChange(of: checkNumber) { oldValue, newValue in
-                                    validateCheckNumber(newValue)
-                                }
-                            
-                            if showCheckNumberError {
-                                Text(checkNumberErrorMessage)
-                                    .font(.caption)
-                                    .foregroundColor(.red)
-                                    .padding(.leading, 5)
-                            }
-                        }
-                        
-                        // Notes
-                        VStack(alignment: .leading, spacing: 5) {
+                        // Cinquième rangée: Notes
+                        VStack(alignment: .leading, spacing: 3) {
                             Text("Notes (optionnel)")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                                .padding(.leading, 5)
                             
                             TextEditor(text: $notes)
-                                .frame(minHeight: 100)
+                                .frame(minHeight: 90) // Hauteur légèrement réduite
                                 .padding(4)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
@@ -163,19 +166,19 @@ struct CheckFormView: View {
                     .padding(.horizontal)
                     
                     // Bouton de sauvegarde
-                    Button(action: saveCheck) {
+                    Button(action: validateAndSaveCheck) {
                         Text("Enregistrer le chèque")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(isFormValid ? Color.black : Color.gray)
+                            .background(Color.black)
                             .cornerRadius(10)
                     }
                     .padding(.horizontal)
-                    .disabled(!isFormValid)
+                    .padding(.top, 5)
                 }
-                .padding()
+                .padding(.bottom)
             }
             .navigationTitle("Nouveau chèque")
             .navigationBarTitleDisplayMode(.inline)
@@ -200,14 +203,14 @@ struct CheckFormView: View {
         // Validation de base:
         // - Le montant doit être valide
         // - Pas d'autres erreurs de validation
-        // (tous les champs sont optionnels mais doivent être valides s'ils sont remplis)
-        !showAmountError && !showCheckNumberError
+        !amountError && !checkNumberError
     }
     
     private func validateAmount(_ value: String) {
         // Vérification si le champ est vide
         if value.isEmpty {
-            showAmountError = false
+            amountError = true
+            amountErrorMessage = "Veuillez entrer un montant"
             return
         }
         
@@ -216,10 +219,10 @@ struct CheckFormView: View {
         
         // Vérifier si c'est un format numérique valide
         if Double(normalizedValue) == nil {
-            showAmountError = true
-            amountErrorMessage = "Veuillez entrer un montant valide (par ex. 123.45)"
+            amountError = true
+            amountErrorMessage = "Montant invalide"
         } else {
-            showAmountError = false
+            amountError = false
         }
     }
     
@@ -227,13 +230,13 @@ struct CheckFormView: View {
         // Le numéro de chèque est optionnel, mais s'il est fourni,
         // il doit contenir exactement 7 chiffres
         if value.isEmpty {
-            showCheckNumberError = false
+            checkNumberError = false
             return
         }
         
         let isValid = value.count == 7 && value.allSatisfy { $0.isNumber }
         
-        showCheckNumberError = !isValid
+        checkNumberError = !isValid
         if !isValid {
             checkNumberErrorMessage = "Le numéro doit contenir exactement 7 chiffres"
         }
@@ -245,6 +248,22 @@ struct CheckFormView: View {
         dateFormatter.timeStyle = .none
         dateFormatter.locale = Locale(identifier: "fr_FR")
         return dateFormatter.string(from: date)
+    }
+    
+    private func validateAndSaveCheck() {
+        // Vérifier le montant (obligatoire)
+        validateAmount(amount)
+        
+        // Vérifier le numéro de chèque si présent
+        validateCheckNumber(checkNumber)
+        
+        // Afficher les erreurs
+        showValidationErrors = true
+        
+        // Si le formulaire est valide, sauvegarder
+        if isFormValid {
+            saveCheck()
+        }
     }
     
     private func saveCheck() {

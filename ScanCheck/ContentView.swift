@@ -287,7 +287,6 @@ struct CheckRowView: View {
         }
     }
 }
-
 struct CheckDetailView: View {
     let check: Check
     @Environment(\.dismiss) private var dismiss
@@ -332,8 +331,6 @@ struct CheckDetailView: View {
                         DetailRow(title: "N° de chèque", value: checkNumber)
                     }
                     
-                    DetailRow(title: "Date de création", value: formatDate(check.creationDate, includeTime: true))
-                    
                     if let notes = check.notes, !notes.isEmpty {
                         Divider()
                         Text("Notes")
@@ -341,6 +338,13 @@ struct CheckDetailView: View {
                         Text(notes)
                             .padding(.top, 4)
                     }
+                    
+                    // Date de création dans un format plus discret à la fin
+                    Divider()
+                    Text("Scanné le \(formatDate(check.creationDate, includeTime: true))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
                 }
                 .padding()
                 .background(Color(.systemBackground))
@@ -387,8 +391,8 @@ struct DetailRow: View {
             Text(title + " :")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-                .frame(width: 110, alignment: .leading)
-                .lineLimit(1)  // Empêche le retour à la ligne
+                .frame(width: 130, alignment: .leading) // Augmentation de la largeur pour éviter la troncature
+                .fixedSize(horizontal: false, vertical: true) // Permet au texte de s'étendre verticalement si nécessaire
             
             Text(value)
                 .font(.subheadline)
