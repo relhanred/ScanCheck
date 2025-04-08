@@ -13,9 +13,6 @@ Icon
 .com.apple.timemachine.donotpresent
 
 # Xcode
-xcuserdata/
-*.xcscmblueprint
-*.xccheckout
 DerivedData/
 *.moved-aside
 *.pbxuser
@@ -30,6 +27,16 @@ DerivedData/
 *.ipa
 *.dSYM.zip
 *.dSYM
+*.xcscmblueprint
+*.xccheckout
+*.xclog
+
+# Xcode user data (spécifique à chaque utilisateur)
+xcuserdata/
+ScanCheck.xcodeproj/xcuserdata/
+
+# Schémas partagés non suivis (à ignorer si non utilisés en équipe)
+ScanCheck.xcodeproj/xcshareddata/
 
 # Swift Package Manager
 .build/
@@ -52,6 +59,10 @@ local.properties
 *.aab
 output.json
 
+# Firebase Crashlytics (si utilisé)
+*.plist.generated
+
 # Temp files
 *.swp
 *~
+
