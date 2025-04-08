@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EmptyChecksView: View {
-    var onScanButtonTapped: () -> Void
+    var onAddButtonTapped: () -> Void
     
     var body: some View {
         VStack(spacing: 20) {
@@ -19,7 +19,7 @@ struct EmptyChecksView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             
-            Button(action: onScanButtonTapped) {
+            Button(action: onAddButtonTapped) {
                 HStack {
                     Image(systemName: "plus")
                     Text("Ajouter un chèque")
@@ -38,5 +38,5 @@ struct EmptyChecksView: View {
 }
 
 #Preview {
-    EmptyChecksView(onScanButtonTapped: {})
+    EmptyChecksView(onAddButtonTapped: {})
 }

@@ -5,107 +5,108 @@ struct CheckScannerView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
-    @State private var showingImagePicker = false
-    @State private var showingCamera = false
+    @Binding var scannedImage: UIImage?
     @State private var showingSourceOptions = false
-    @State private var scannedImage: UIImage?
+    @State private var showingCamera = false
+    @State private var showingImagePicker = false
     @State private var issuerName = ""
     @State private var amount = ""
     @State private var checkNumber = ""
     @State private var notes = ""
     
+    init(scannedImage: Binding<UIImage?>) {
+        self._scannedImage = scannedImage
+    }
+    
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Zone d'image
-                    ZStack {
-                        if let scannedImage {
-                            Image(uiImage: scannedImage)
+            if scannedImage != nil {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Image déjà scannée
+                        if let image = scannedImage {
+                            Image(uiImage: image)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(height: 200)
                                 .cornerRadius(12)
                                 .shadow(radius: 2)
-                        } else {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray6))
-                                .frame(height: 200)
-                                .overlay(
-                                    VStack(spacing: 10) {
-                                        Image(systemName: "photo.on.rectangle")
-                                            .font(.system(size: 40))
-                                            .foregroundColor(.black)
-                                        
-                                        Text("Ajouter une photo du chèque")
-                                            .font(.headline)
-                                    }
-                                )
+                                .padding()
+                        }
+                        
+                        // Formulaire (seulement si une image est présente)
+                        VStack(spacing: 15) {
+                            TextField("Nom de l'émetteur", text: $issuerName)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            TextField("Montant (€)", text: $amount)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.decimalPad)
+                            
+                            TextField("Numéro du chèque", text: $checkNumber)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.numberPad)
+                            
+                            TextField("Notes (optionnel)", text: $notes)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                        }
+                        .padding(.horizontal)
+                        
+                        // Bouton de sauvegarde
+                        Button(action: saveCheck) {
+                            Text("Enregistrer le chèque")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.black)
+                                .cornerRadius(10)
+                        }
+                        .padding(.horizontal)
+                        .disabled(issuerName.isEmpty || amount.isEmpty)
+                        .opacity(issuerName.isEmpty || amount.isEmpty ? 0.6 : 1)
+                    }
+                    .padding()
+                }
+                .navigationTitle("Nouveau chèque")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Annuler") {
+                            scannedImage = nil
+                            dismiss()
                         }
                     }
-                    .onTapGesture {
-                        showingSourceOptions = true
-                    }
                     
-                    // Formulaire
-                    VStack(spacing: 15) {
-                        TextField("Nom de l'émetteur", text: $issuerName)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        
-                        TextField("Montant (€)", text: $amount)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.decimalPad)
-                        
-                        TextField("Numéro du chèque", text: $checkNumber)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                        
-                        TextField("Notes (optionnel)", text: $notes)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Changer d'image") {
+                            showingSourceOptions = true
+                        }
                     }
-                    .padding(.horizontal)
-                    
-                    // Bouton de sauvegarde
-                    Button(action: saveCheck) {
-                        Text("Enregistrer le chèque")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.black)
-                            .cornerRadius(10)
-                    }
-                    .padding(.horizontal)
-                    .disabled(issuerName.isEmpty || amount.isEmpty || scannedImage == nil)
-                    .opacity(issuerName.isEmpty || amount.isEmpty || scannedImage == nil ? 0.6 : 1)
                 }
-                .padding()
-            }
-            .navigationTitle("Ajouter un chèque")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Annuler") {
+                .confirmationDialog("Choisir une source", isPresented: $showingSourceOptions) {
+                    Button("Prendre une photo") {
+                        showingCamera = true
+                    }
+                    Button("Importer depuis la galerie") {
+                        showingImagePicker = true
+                    }
+                    Button("Annuler", role: .cancel) {}
+                }
+                .sheet(isPresented: $showingCamera) {
+                    CameraView { image in
+                        self.scannedImage = image
+                    }
+                }
+                .sheet(isPresented: $showingImagePicker) {
+                    ImagePicker(selectedImage: $scannedImage)
+                }
+            } else {
+                // Nous ne devrions jamais arriver ici car la vue ne devrait être présentée qu'avec une image
+                Text("Aucune image disponible")
+                    .onAppear {
                         dismiss()
                     }
-                }
-            }
-            .sheet(isPresented: $showingCamera) {
-                CameraView { image in
-                    self.scannedImage = image
-                }
-            }
-            .sheet(isPresented: $showingImagePicker) {
-                ImagePicker(selectedImage: $scannedImage)
-            }
-            .confirmationDialog("Choisir une source", isPresented: $showingSourceOptions) {
-                Button("Prendre une photo") {
-                    showingCamera = true
-                }
-                Button("Importer depuis la galerie") {
-                    showingImagePicker = true
-                }
-                Button("Annuler", role: .cancel) {}
             }
         }
     }
@@ -129,6 +130,7 @@ struct CheckScannerView: View {
         }
         
         modelContext.insert(newCheck)
+        scannedImage = nil
         dismiss()
     }
 }
@@ -209,6 +211,6 @@ struct ImagePicker: UIViewControllerRepresentable {
 }
 
 #Preview {
-    CheckScannerView()
+    CheckScannerView(scannedImage: .constant(UIImage(systemName: "photo")))
         .modelContainer(for: Check.self, inMemory: true)
 }
