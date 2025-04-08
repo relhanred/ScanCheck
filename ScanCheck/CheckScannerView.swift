@@ -71,19 +71,27 @@ struct CheckScannerView: View {
                 .navigationTitle("Nouveau chèque")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Annuler") {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(action: {
                             scannedImage = nil
                             dismiss()
+                        }) {
+                            HStack {
+                                Image(systemName: "chevron.left")
+                                Text("Retour")
+                            }
+                            .foregroundColor(.black)
                         }
                     }
                     
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         Button("Changer d'image") {
                             showingSourceOptions = true
                         }
+                        .foregroundColor(.black)
                     }
                 }
+                .navigationBarBackButtonHidden(true)
                 .confirmationDialog("Choisir une source", isPresented: $showingSourceOptions) {
                     Button("Prendre une photo") {
                         showingCamera = true
@@ -134,6 +142,8 @@ struct CheckScannerView: View {
         dismiss()
     }
 }
+
+
 
 // Vue pour la caméra utilisant UIImagePickerController
 struct CameraView: UIViewControllerRepresentable {

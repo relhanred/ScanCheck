@@ -251,6 +251,22 @@ struct CheckRowView: View {
             CheckDetailView(check: check)
         } label: {
             HStack {
+                // Ajout de l'image miniature
+                if let imageData = check.imageData, let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Image(systemName: "doc.text.viewfinder")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 30, height: 30)
+                        .padding(10)
+                        .foregroundColor(.gray)
+                }
+                
                 VStack(alignment: .leading) {
                     Text(check.issuerName)
                         .font(.headline)
@@ -272,6 +288,7 @@ struct CheckRowView: View {
 
 struct CheckDetailView: View {
     let check: Check
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         ScrollView {
@@ -294,7 +311,9 @@ struct CheckDetailView: View {
                     DetailRow(title: "Émetteur", value: check.issuerName)
                     DetailRow(title: "Montant", value: String(format: "%.2f €", check.amount))
                     DetailRow(title: "N° de chèque", value: check.checkNumber ?? "Non spécifié")
-                    DetailRow(title: "Date de scan", value: check.scanDate.formatted(date: .long, time: .shortened))
+                    
+                    // Correction de la date pour utiliser "à" au lieu de "at"
+                    DetailRow(title: "Date de scan", value: formatDate(check.scanDate))
                     
                     if let notes = check.notes, !notes.isEmpty {
                         Divider()
@@ -313,6 +332,30 @@ struct CheckDetailView: View {
         }
         .navigationTitle("Détails du chèque")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Ajout d'un bouton Retour en français
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    dismiss()
+                }) {
+                    HStack {
+                        Image(systemName: "chevron.left")
+                        Text("Retour")
+                    }
+                    .foregroundColor(.black)
+                }
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+    
+    // Fonction pour formater la date en français
+    private func formatDate(_ date: Date) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .long
+        dateFormatter.timeStyle = .short
+        dateFormatter.locale = Locale(identifier: "fr_FR")
+        return dateFormatter.string(from: date)
     }
 }
 
@@ -325,7 +368,8 @@ struct DetailRow: View {
             Text(title + " :")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-                .frame(width: 100, alignment: .leading)
+                .frame(width: 110, alignment: .leading)
+                .lineLimit(1)  // Empêche le retour à la ligne
             
             Text(value)
                 .font(.subheadline)

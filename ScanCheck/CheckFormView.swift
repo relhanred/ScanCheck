@@ -62,12 +62,19 @@ struct CheckFormView: View {
             .navigationTitle("Nouveau chèque")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Annuler") {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Retour")
+                        }
+                        .foregroundColor(.black)
                     }
                 }
             }
+            .navigationBarBackButtonHidden(true)
         }
     }
     
