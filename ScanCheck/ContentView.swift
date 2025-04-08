@@ -242,7 +242,6 @@ struct ContentView: View {
         }
     }
 }
-
 struct CheckRowView: View {
     let check: Check
     
@@ -268,11 +267,14 @@ struct CheckRowView: View {
                 }
                 
                 VStack(alignment: .leading) {
-                    Text(check.issuerName)
+                    // Afficher soit la banque, soit le destinataire, soit "Chèque" par défaut
+                    Text(check.bank ?? check.recipient ?? "Chèque")
                         .font(.headline)
-                    Text("N° \(check.checkNumber ?? "Non spécifié")")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    if let checkNumber = check.checkNumber {
+                        Text("N° \(checkNumber)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
@@ -308,12 +310,29 @@ struct CheckDetailView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 10) {
-                    DetailRow(title: "Émetteur", value: check.issuerName)
                     DetailRow(title: "Montant", value: String(format: "%.2f €", check.amount))
-                    DetailRow(title: "N° de chèque", value: check.checkNumber ?? "Non spécifié")
                     
-                    // Correction de la date pour utiliser "à" au lieu de "at"
-                    DetailRow(title: "Date de scan", value: formatDate(check.scanDate))
+                    if let bank = check.bank, !bank.isEmpty {
+                        DetailRow(title: "Banque", value: bank)
+                    }
+                    
+                    if let recipient = check.recipient, !recipient.isEmpty {
+                        DetailRow(title: "À l'ordre de", value: recipient)
+                    }
+                    
+                    if let place = check.place, !place.isEmpty {
+                        DetailRow(title: "Lieu", value: place)
+                    }
+                    
+                    if let checkDate = check.checkDate {
+                        DetailRow(title: "Date du chèque", value: formatDate(checkDate, includeTime: false))
+                    }
+                    
+                    if let checkNumber = check.checkNumber, !checkNumber.isEmpty {
+                        DetailRow(title: "N° de chèque", value: checkNumber)
+                    }
+                    
+                    DetailRow(title: "Date de création", value: formatDate(check.creationDate, includeTime: true))
                     
                     if let notes = check.notes, !notes.isEmpty {
                         Divider()
@@ -350,10 +369,10 @@ struct CheckDetailView: View {
     }
     
     // Fonction pour formater la date en français
-    private func formatDate(_ date: Date) -> String {
+    private func formatDate(_ date: Date, includeTime: Bool) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .long
-        dateFormatter.timeStyle = .short
+        dateFormatter.timeStyle = includeTime ? .short : .none
         dateFormatter.locale = Locale(identifier: "fr_FR")
         return dateFormatter.string(from: date)
     }
