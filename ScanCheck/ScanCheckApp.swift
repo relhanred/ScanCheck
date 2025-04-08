@@ -1,10 +1,3 @@
-//
-//  ScanCheckApp.swift
-//  ScanCheck
-//
-//  Created by El hanti Redha on 08/04/2025.
-//
-
 import SwiftUI
 import SwiftData
 

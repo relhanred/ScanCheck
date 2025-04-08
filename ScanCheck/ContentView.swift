@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  ScanCheck
-//
-//  Created by El hanti Redha on 08/04/2025.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -17,11 +10,9 @@ struct ContentView: View {
         NavigationStack {
             VStack {
                 if checks.isEmpty {
-                    ContentUnavailableView {
-                        Label("Aucun chèque", systemImage: "doc.text.viewfinder")
-                    } description: {
-                        Text("Appuyez sur le bouton + pour scanner un nouveau chèque")
-                    }
+                    EmptyChecksView(onScanButtonTapped: {
+                        showingScannerSheet = true
+                    })
                 } else {
                     List {
                         ForEach(checks) { check in
@@ -34,9 +25,6 @@ struct ContentView: View {
             .navigationTitle("Mes Chèques")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
                     Button(action: {
                         showingScannerSheet = true
                     }) {
@@ -44,7 +32,9 @@ struct ContentView: View {
                     }
                 }
             }
-            // Ici nous ajouterons la logique pour afficher le scanner
+            .sheet(isPresented: $showingScannerSheet) {
+                CheckScannerView()
+            }
         }
     }
     
@@ -54,6 +44,43 @@ struct ContentView: View {
                 modelContext.delete(checks[index])
             }
         }
+    }
+}
+
+struct EmptyChecksView: View {
+    var onScanButtonTapped: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "doc.text.viewfinder")
+                .font(.system(size: 70))
+                .foregroundColor(.blue)
+            
+            Text("Aucun chèque enregistré")
+                .font(.title2)
+                .fontWeight(.medium)
+            
+            Text("Scannez votre premier chèque pour commencer")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            Button(action: onScanButtonTapped) {
+                HStack {
+                    Image(systemName: "camera")
+                    Text("Scanner un chèque")
+                }
+                .font(.headline)
+                .padding()
+                .frame(minWidth: 200)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            }
+            .padding(.top, 10)
+        }
+        .padding()
     }
 }
 
