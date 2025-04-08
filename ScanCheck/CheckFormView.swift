@@ -90,7 +90,18 @@ struct CheckFormView: View {
         }
         
         modelContext.insert(newCheck)
-        dismiss()
+        
+        do {
+            try modelContext.save()
+            print("Check saved successfully")
+        } catch {
+            print("Failed to save check: \(error)")
+        }
+        
+        // Assurer que la fermeture se fait correctement
+        DispatchQueue.main.async {
+            dismiss()
+        }
     }
 }
 

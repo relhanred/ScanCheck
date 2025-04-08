@@ -108,6 +108,13 @@ struct ContentView: View {
                     showingCheckForm = true
                 }
             }
+            // Ajout d'un onChange pour forcer la mise à jour du modelContext
+            .onChange(of: showingCheckForm) { oldValue, newValue in
+                if oldValue == true && newValue == false {
+                    // Force ModelContext to update
+                    modelContext.processPendingChanges()
+                }
+            }
         }
     }
     
