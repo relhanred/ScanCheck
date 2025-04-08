@@ -42,7 +42,12 @@ struct CheckScannerView: View {
                         // Formulaire
                         VStack(spacing: 15) {
                             VStack(alignment: .leading, spacing: 5) {
-                                TextField("Nom de l'émetteur", text: $issuerName)
+                                Text("Nom de l'émetteur")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 5)
+                                
+                                TextField("", text: $issuerName)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .onChange(of: issuerName) { oldValue, newValue in
                                         showIssuerNameError = newValue.isEmpty
@@ -57,7 +62,12 @@ struct CheckScannerView: View {
                             }
                             
                             VStack(alignment: .leading, spacing: 5) {
-                                TextField("Montant (€)", text: $amount)
+                                Text("Montant (€)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 5)
+                                
+                                TextField("", text: $amount)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .keyboardType(.decimalPad)
                                     .onChange(of: amount) { oldValue, newValue in
@@ -72,9 +82,16 @@ struct CheckScannerView: View {
                                 }
                             }
                             
-                            TextField("Numéro du chèque", text: $checkNumber)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .keyboardType(.numberPad)
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("Numéro du chèque")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 5)
+                                
+                                TextField("", text: $checkNumber)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.numberPad)
+                            }
                             
                             VStack(alignment: .leading, spacing: 5) {
                                 Text("Notes (optionnel)")
