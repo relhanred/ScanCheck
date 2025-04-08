@@ -24,11 +24,14 @@ struct ContentView: View {
             }
             .navigationTitle("Mes Chèques")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showingScannerSheet = true
-                    }) {
-                        Label("Scanner un chèque", systemImage: "camera")
+                // N'afficher le bouton d'appareil photo que si des chèques existent déjà
+                if !checks.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            showingScannerSheet = true
+                        }) {
+                            Label("Scanner un chèque", systemImage: "camera")
+                        }
                     }
                 }
             }
@@ -54,7 +57,7 @@ struct EmptyChecksView: View {
         VStack(spacing: 20) {
             Image(systemName: "doc.text.viewfinder")
                 .font(.system(size: 70))
-                .foregroundColor(.blue)
+                .foregroundColor(.black)
             
             Text("Aucun chèque enregistré")
                 .font(.title2)
@@ -74,7 +77,7 @@ struct EmptyChecksView: View {
                 .font(.headline)
                 .padding()
                 .frame(minWidth: 200)
-                .background(Color.blue)
+                .background(Color.black)
                 .foregroundColor(.white)
                 .cornerRadius(10)
             }
@@ -104,7 +107,7 @@ struct CheckRowView: View {
                 
                 Text(String(format: "%.2f €", check.amount))
                     .font(.headline)
-                    .foregroundColor(check.amount > 0 ? .green : .primary)
+                    .foregroundColor(.black)
             }
             .padding(.vertical, 4)
         }

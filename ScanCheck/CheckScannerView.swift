@@ -37,7 +37,7 @@ struct CheckScannerView: View {
                                     VStack(spacing: 10) {
                                         Image(systemName: "camera")
                                             .font(.system(size: 40))
-                                            .foregroundColor(.blue)
+                                            .foregroundColor(.black)
                                         
                                         Text("Prendre une photo du chèque")
                                             .font(.headline)
@@ -83,7 +83,7 @@ struct CheckScannerView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.blue)
+                            .background(Color.black)
                             .cornerRadius(10)
                     }
                     .padding(.horizontal)
