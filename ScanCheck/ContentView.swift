@@ -48,22 +48,48 @@ struct ContentView: View {
                     CheckFormView(image: image)
                         .environment(\.modelContext, modelContext)
                         .onDisappear {
-                            capturedImage = nil
+                            // Ne pas réinitialiser l'image immédiatement
+                            // pour éviter des problèmes lors de la disparition temporaire
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                capturedImage = nil
+                            }
                         }
                 } else {
-                    // Afficher un message d'erreur ou fermer la sheet
-                    VStack {
+                    // Afficher un message d'erreur avec des détails et des options de récupération
+                    VStack(spacing: 20) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange)
+                        
                         Text("Aucune image disponible")
+                            .font(.headline)
                             .padding()
+                        
+                        Text("L'image n'a pas pu être chargée correctement.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Button("Réessayer") {
+                            // Fermer la sheet actuelle
+                            showingCheckForm = false
+                            
+                            // Attendre un instant puis réafficher les options
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                showingSourceOptions = true
+                            }
+                        }
+                        .padding()
+                        .buttonStyle(.bordered)
+                        
                         Button("Fermer") {
                             showingCheckForm = false
                         }
                         .padding()
+                        .buttonStyle(.borderedProminent)
                     }
-                    .onAppear {
-                        // Fermer automatiquement la sheet si pas d'image
-                        showingCheckForm = false
-                    }
+                    .padding()
                 }
             }
             .confirmationDialog("Choisir une source", isPresented: $showingSourceOptions) {
@@ -82,13 +108,32 @@ struct ContentView: View {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
         
-        // Créer et stocker le délégué
+        // Créer et stocker le délégué avec une logique plus robuste
         self.imagePickerDelegate = ImagePickerDelegate { image in
-            // S'assurer que l'image est définie avant d'ouvrir la sheet
-            self.capturedImage = image
-            // Attendre un petit instant pour s'assurer que capturedImage est bien défini
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.showingCheckForm = true
+            print("Image capturée, taille: \(image.size.width)x\(image.size.height)")
+            
+            // Assurer que l'image est valide
+            guard image.size.width > 0, image.size.height > 0 else {
+                print("Image invalide détectée")
+                return
+            }
+            
+            // Définir l'image capturée sur le thread principal
+            DispatchQueue.main.async { [self] in
+                // S'assurer que l'image est bien copiée/retenue
+                let imageCopy = image.copy() as! UIImage
+                self.capturedImage = imageCopy
+                
+                // Attendre que l'image soit bien définie
+                DispatchQueue.main.async {
+                    // Vérifier que l'image est bien définie
+                    if self.capturedImage != nil {
+                        print("Présentation de la sheet avec image")
+                        self.showingCheckForm = true
+                    } else {
+                        print("Échec de définition de l'image")
+                    }
+                }
             }
         }
         
@@ -107,13 +152,32 @@ struct ContentView: View {
         let picker = UIImagePickerController()
         picker.sourceType = .photoLibrary
         
-        // Créer et stocker le délégué
+        // Créer et stocker le délégué avec une logique plus robuste
         self.imagePickerDelegate = ImagePickerDelegate { image in
-            // S'assurer que l'image est définie avant d'ouvrir la sheet
-            self.capturedImage = image
-            // Attendre un petit instant pour s'assurer que capturedImage est bien défini
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.showingCheckForm = true
+            print("Image sélectionnée, taille: \(image.size.width)x\(image.size.height)")
+            
+            // Assurer que l'image est valide
+            guard image.size.width > 0, image.size.height > 0 else {
+                print("Image invalide détectée")
+                return
+            }
+            
+            // Définir l'image capturée sur le thread principal
+            DispatchQueue.main.async { [self] in
+                // S'assurer que l'image est bien copiée/retenue
+                let imageCopy = image.copy() as! UIImage
+                self.capturedImage = imageCopy
+                
+                // Attendre que l'image soit bien définie
+                DispatchQueue.main.async {
+                    // Vérifier que l'image est bien définie
+                    if self.capturedImage != nil {
+                        print("Présentation de la sheet avec image")
+                        self.showingCheckForm = true
+                    } else {
+                        print("Échec de définition de l'image")
+                    }
+                }
             }
         }
         
@@ -145,15 +209,31 @@ struct ContentView: View {
         }
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                DispatchQueue.main.async {
-                    self.onImagePicked(image)
-                }
+            print("Délégué: image sélectionnée")
+            
+            // Essayer d'abord avec l'image éditée si disponible
+            if let editedImage = info[.editedImage] as? UIImage {
+                print("Utilisation de l'image éditée")
+                self.onImagePicked(editedImage)
             }
-            picker.dismiss(animated: true)
+            // Sinon utiliser l'image originale
+            else if let originalImage = info[.originalImage] as? UIImage {
+                print("Utilisation de l'image originale")
+                self.onImagePicked(originalImage)
+            }
+            else {
+                print("Aucune image trouvée dans info")
+            }
+            
+            // Attendre un court instant avant de fermer le picker
+            // pour s'assurer que les callbacks sont complétés
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                picker.dismiss(animated: true)
+            }
         }
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            print("Sélection d'image annulée")
             picker.dismiss(animated: true)
         }
     }
