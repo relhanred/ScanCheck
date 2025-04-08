@@ -290,6 +290,7 @@ struct CheckRowView: View {
 struct CheckDetailView: View {
     let check: Check
     @Environment(\.dismiss) private var dismiss
+    @State private var showingEditView = false
     
     var body: some View {
         ScrollView {
@@ -356,7 +357,7 @@ struct CheckDetailView: View {
         .navigationTitle("Détails du chèque")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // Ajout d'un bouton Retour en français
+            // Bouton Retour
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: {
                     dismiss()
@@ -368,8 +369,21 @@ struct CheckDetailView: View {
                     .foregroundColor(.black)
                 }
             }
+            
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(action: {
+                                showingEditView = true
+                            }) {
+                                Text("Modifier")
+                                    .foregroundColor(.black)
+                            }
+                        }
         }
         .navigationBarBackButtonHidden(true)
+        .sheet(isPresented: $showingEditView) {
+            CheckEditView(check: check)
+        }
     }
     
     // Fonction pour formater la date en français
