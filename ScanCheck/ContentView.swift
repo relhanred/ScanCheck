@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var showingSourceOptions = false
     @State private var showingCheckForm = false
     @State private var capturedImage: UIImage?
+    @State private var isImageReady = false
     
     // On conserve une référence forte au délégué pour éviter sa déallocation
     @State private var imagePickerDelegate: ImagePickerDelegate?
@@ -44,14 +45,14 @@ struct ContentView: View {
                 }
             })
             .sheet(isPresented: $showingCheckForm) {
-                if let image = capturedImage {
+                if let image = capturedImage, isImageReady {
                     CheckFormView(image: image)
                         .environment(\.modelContext, modelContext)
                         .onDisappear {
-                            // Ne pas réinitialiser l'image immédiatement
-                            // pour éviter des problèmes lors de la disparition temporaire
+                            // Réinitialiser les états après fermeture de la sheet
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                 capturedImage = nil
+                                isImageReady = false
                             }
                         }
                 } else {
@@ -101,6 +102,12 @@ struct ContentView: View {
                 }
                 Button("Annuler", role: .cancel) {}
             }
+            // Surveillons le changement d'état de isImageReady pour montrer la sheet
+            .onChange(of: isImageReady) { oldValue, newValue in
+                if newValue && capturedImage != nil {
+                    showingCheckForm = true
+                }
+            }
         }
     }
     
@@ -124,15 +131,10 @@ struct ContentView: View {
                 let imageCopy = image.copy() as! UIImage
                 self.capturedImage = imageCopy
                 
-                // Attendre que l'image soit bien définie
-                DispatchQueue.main.async {
-                    // Vérifier que l'image est bien définie
-                    if self.capturedImage != nil {
-                        print("Présentation de la sheet avec image")
-                        self.showingCheckForm = true
-                    } else {
-                        print("Échec de définition de l'image")
-                    }
+                // Indiquer que l'image est prête avec un léger délai pour s'assurer que tout est bien traité
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self.isImageReady = true
+                    print("Image prête: \(self.isImageReady), image: \(self.capturedImage != nil)")
                 }
             }
         }
@@ -168,15 +170,10 @@ struct ContentView: View {
                 let imageCopy = image.copy() as! UIImage
                 self.capturedImage = imageCopy
                 
-                // Attendre que l'image soit bien définie
-                DispatchQueue.main.async {
-                    // Vérifier que l'image est bien définie
-                    if self.capturedImage != nil {
-                        print("Présentation de la sheet avec image")
-                        self.showingCheckForm = true
-                    } else {
-                        print("Échec de définition de l'image")
-                    }
+                // Indiquer que l'image est prête avec un léger délai pour s'assurer que tout est bien traité
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self.isImageReady = true
+                    print("Image prête: \(self.isImageReady), image: \(self.capturedImage != nil)")
                 }
             }
         }
