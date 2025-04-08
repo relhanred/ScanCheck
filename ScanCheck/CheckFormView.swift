@@ -12,6 +12,11 @@ struct CheckFormView: View {
     @State private var checkNumber = ""
     @State private var notes = ""
     
+    // États pour la gestion des erreurs
+    @State private var showAmountError = false
+    @State private var amountErrorMessage = ""
+    @State private var showIssuerNameError = false
+    
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -27,19 +32,55 @@ struct CheckFormView: View {
                     
                     // Formulaire
                     VStack(spacing: 15) {
-                        TextField("Nom de l'émetteur", text: $issuerName)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        VStack(alignment: .leading, spacing: 5) {
+                            TextField("Nom de l'émetteur", text: $issuerName)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .onChange(of: issuerName) { oldValue, newValue in
+                                    showIssuerNameError = newValue.isEmpty
+                                }
+                            
+                            if showIssuerNameError {
+                                Text("Le nom de l'émetteur est requis")
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                    .padding(.leading, 5)
+                            }
+                        }
                         
-                        TextField("Montant (€)", text: $amount)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.decimalPad)
+                        VStack(alignment: .leading, spacing: 5) {
+                            TextField("Montant (€)", text: $amount)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.decimalPad)
+                                .onChange(of: amount) { oldValue, newValue in
+                                    validateAmount(newValue)
+                                }
+                            
+                            if showAmountError {
+                                Text(amountErrorMessage)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                    .padding(.leading, 5)
+                            }
+                        }
                         
                         TextField("Numéro du chèque", text: $checkNumber)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .keyboardType(.numberPad)
                         
-                        TextField("Notes (optionnel)", text: $notes)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Notes (optionnel)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.leading, 5)
+                            
+                            TextEditor(text: $notes)
+                                .frame(minHeight: 100)
+                                .padding(4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                )
+                        }
                     }
                     .padding(.horizontal)
                     
@@ -50,12 +91,11 @@ struct CheckFormView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.black)
+                            .background(isFormValid ? Color.black : Color.gray)
                             .cornerRadius(10)
                     }
                     .padding(.horizontal)
-                    .disabled(issuerName.isEmpty || amount.isEmpty)
-                    .opacity(issuerName.isEmpty || amount.isEmpty ? 0.6 : 1)
+                    .disabled(!isFormValid)
                 }
                 .padding()
             }
@@ -78,9 +118,42 @@ struct CheckFormView: View {
         }
     }
     
+    private var isFormValid: Bool {
+        !issuerName.isEmpty && !amount.isEmpty && !showAmountError
+    }
+    
+    private func validateAmount(_ value: String) {
+        // Vérification initiale si le champ est vide
+        if value.isEmpty {
+            showAmountError = true
+            amountErrorMessage = "Le montant est requis"
+            return
+        }
+        
+        // Remplacer la virgule par un point pour la conversion
+        let normalizedValue = value.replacingOccurrences(of: ",", with: ".")
+        
+        // Vérifier si c'est un format numérique valide
+        if Double(normalizedValue) == nil {
+            showAmountError = true
+            amountErrorMessage = "Veuillez entrer un montant valide (par ex. 123.45)"
+        } else {
+            showAmountError = false
+        }
+    }
+    
     private func saveCheck() {
-        // Conversion du montant
-        guard let amountValue = Double(amount.replacingOccurrences(of: ",", with: ".")) else {
+        // Validation supplémentaire avant sauvegarde
+        if issuerName.isEmpty {
+            showIssuerNameError = true
+            return
+        }
+        
+        // Validation du montant
+        let normalizedAmount = amount.replacingOccurrences(of: ",", with: ".")
+        guard let amountValue = Double(normalizedAmount) else {
+            showAmountError = true
+            amountErrorMessage = "Format de montant invalide"
             return
         }
         
