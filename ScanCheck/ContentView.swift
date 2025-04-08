@@ -9,24 +9,94 @@ struct ContentView: View {
     @State private var showingCheckForm = false
     @State private var capturedImage: UIImage?
     @State private var isImageReady = false
+    @State private var checkToDelete: Check? = nil
+    @State private var showingDeleteConfirmation = false
+    @State private var deletionInProgress = false
     
     // On conserve une référence forte au délégué pour éviter sa déallocation
     @State private var imagePickerDelegate: ImagePickerDelegate?
     
     var body: some View {
         NavigationStack {
-            VStack {
-                if checks.isEmpty {
-                    EmptyChecksView(onAddButtonTapped: {
-                        showingSourceOptions = true
-                    })
-                } else {
-                    List {
-                        ForEach(checks) { check in
-                            CheckRowView(check: check)
+            ZStack {
+                VStack {
+                    if checks.isEmpty {
+                        EmptyChecksView(onAddButtonTapped: {
+                            showingSourceOptions = true
+                        })
+                    } else {
+                        List {
+                            ForEach(checks) { check in
+                                CheckRowView(check: check)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            checkToDelete = check
+                                            showingDeleteConfirmation = true
+                                        } label: {
+                                            Label("Supprimer", systemImage: "trash.fill")
+                                        }
+                                        .tint(.red)
+                                    }
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            checkToDelete = check
+                                            showingDeleteConfirmation = true
+                                        } label: {
+                                            Label("Supprimer", systemImage: "trash.fill")
+                                        }
+                                    }
+                            }
+                            .onDelete(perform: deleteChecks)
                         }
-                        .onDelete(perform: deleteChecks)
+                        .animation(.default, value: checks.count)
                     }
+                }
+                .blur(radius: showingDeleteConfirmation ? 2 : 0)
+                
+                // Overlay de confirmation de suppression
+                if showingDeleteConfirmation, let check = checkToDelete {
+                    Color.black.opacity(0.1)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation {
+                                showingDeleteConfirmation = false
+                            }
+                        }
+                    
+                    VStack {
+                        Spacer()
+                        
+                        ContextualDeleteConfirmation(
+                            isVisible: $showingDeleteConfirmation,
+                            checkInfo: check.bank ?? check.recipient ?? "Chèque",
+                            amount: check.amount,
+                            onConfirm: {
+                                deletionInProgress = true
+                                
+                                // Animation de disparition
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showingDeleteConfirmation = false
+                                }
+                                
+                                // Suppression après la fin de l'animation
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    withAnimation {
+                                        deleteCheck(check)
+                                        checkToDelete = nil
+                                        deletionInProgress = false
+                                    }
+                                }
+                            },
+                            onCancel: {
+                                showingDeleteConfirmation = false
+                                checkToDelete = nil
+                            }
+                        )
+                        .transition(.move(edge: .bottom))
+                        
+                        Spacer().frame(height: 30)
+                    }
+                    .transition(.opacity)
                 }
             }
             .navigationTitle("Mes Chèques")
@@ -40,6 +110,7 @@ struct ContentView: View {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 20))
                                 .foregroundColor(.black)
+                                .symbolEffect(.bounce, options: .repeating, value: checks.isEmpty)
                         }
                     }
                 }
@@ -116,6 +187,7 @@ struct ContentView: View {
                 }
             }
         }
+        .disabled(deletionInProgress) // Désactiver l'interface pendant la suppression
     }
     
     private func captureImageFromCamera() {
@@ -197,10 +269,18 @@ struct ContentView: View {
     }
     
     private func deleteChecks(offsets: IndexSet) {
-        withAnimation {
+        withAnimation(.easeInOut(duration: 0.3)) {
             for index in offsets {
                 modelContext.delete(checks[index])
             }
+            try? modelContext.save()
+        }
+    }
+    
+    private func deleteCheck(_ check: Check) {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            modelContext.delete(check)
+            try? modelContext.save()
         }
     }
     
@@ -242,6 +322,7 @@ struct ContentView: View {
         }
     }
 }
+
 struct CheckRowView: View {
     let check: Check
     
@@ -285,133 +366,11 @@ struct CheckRowView: View {
             }
             .padding(.vertical, 4)
         }
-    }
-}
-struct CheckDetailView: View {
-    let check: Check
-    @Environment(\.dismiss) private var dismiss
-    @State private var showingEditView = false
-    
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                if let imageData = check.imageData, let uiImage = UIImage(data: imageData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                        .cornerRadius(8)
-                } else {
-                    ContentUnavailableView {
-                        Label("Pas d'image", systemImage: "photo")
-                    } description: {
-                        Text("L'image du chèque n'est pas disponible")
-                    }
-                }
-                
-                VStack(alignment: .leading, spacing: 10) {
-                    DetailRow(title: "Montant", value: String(format: "%.2f €", check.amount))
-                    
-                    if let bank = check.bank, !bank.isEmpty {
-                        DetailRow(title: "Banque", value: bank)
-                    }
-                    
-                    if let recipient = check.recipient, !recipient.isEmpty {
-                        DetailRow(title: "À l'ordre de", value: recipient)
-                    }
-                    
-                    if let place = check.place, !place.isEmpty {
-                        DetailRow(title: "Lieu", value: place)
-                    }
-                    
-                    if let checkDate = check.checkDate {
-                        DetailRow(title: "Date du chèque", value: formatDate(checkDate, includeTime: false))
-                    }
-                    
-                    if let checkNumber = check.checkNumber, !checkNumber.isEmpty {
-                        DetailRow(title: "N° de chèque", value: checkNumber)
-                    }
-                    
-                    if let notes = check.notes, !notes.isEmpty {
-                        Divider()
-                        Text("Notes")
-                            .font(.headline)
-                        Text(notes)
-                            .padding(.top, 4)
-                    }
-                    
-                    // Date de création dans un format plus discret à la fin
-                    Divider()
-                    Text("Scanné le \(formatDate(check.creationDate, includeTime: true))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
-                }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(10)
-                .shadow(radius: 1)
+        .swipeActions(edge: .leading) {
+            NavigationLink(destination: CheckEditView(check: check)) {
+                Label("Modifier", systemImage: "pencil")
             }
-            .padding()
-        }
-        .navigationTitle("Détails du chèque")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            // Bouton Retour
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: {
-                    dismiss()
-                }) {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                        Text("Retour")
-                    }
-                    .foregroundColor(.black)
-                }
-            }
-            
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                            Button(action: {
-                                showingEditView = true
-                            }) {
-                                Text("Modifier")
-                                    .foregroundColor(.black)
-                            }
-                        }
-        }
-        .navigationBarBackButtonHidden(true)
-        .sheet(isPresented: $showingEditView) {
-            CheckEditView(check: check)
-        }
-    }
-    
-    // Fonction pour formater la date en français
-    private func formatDate(_ date: Date, includeTime: Bool) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .long
-        dateFormatter.timeStyle = includeTime ? .short : .none
-        dateFormatter.locale = Locale(identifier: "fr_FR")
-        return dateFormatter.string(from: date)
-    }
-}
-
-struct DetailRow: View {
-    let title: String
-    let value: String
-    
-    var body: some View {
-        HStack(alignment: .top) {
-            Text(title + " :")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .frame(width: 130, alignment: .leading) // Augmentation de la largeur pour éviter la troncature
-                .fixedSize(horizontal: false, vertical: true) // Permet au texte de s'étendre verticalement si nécessaire
-            
-            Text(value)
-                .font(.subheadline)
-            
-            Spacer()
+            .tint(.blue)
         }
     }
 }
