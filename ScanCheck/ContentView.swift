@@ -56,6 +56,14 @@ struct ContentView: View {
                         .animation(.default, value: checks.count)
                     }
                 }
+                .onAppear {
+                        if let image = UIImage(named: "check") {
+                            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                            print("Image enregistrée dans la photothèque.")
+                        } else {
+                            print("Image 'test' non trouvée.")
+                        }
+                    }
                 .blur(radius: showingDeleteConfirmation ? 2 : 0)
                 
                 // Overlay de confirmation de suppression
