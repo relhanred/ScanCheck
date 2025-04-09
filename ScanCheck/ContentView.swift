@@ -12,9 +12,14 @@ struct ContentView: View {
     @State private var checkToDelete: Check? = nil
     @State private var showingDeleteConfirmation = false
     @State private var deletionInProgress = false
+    @State private var isAnalyzing = false
+    @State private var analysisError: String? = nil
     
     // On conserve une référence forte au délégué pour éviter sa déallocation
     @State private var imagePickerDelegate: ImagePickerDelegate?
+    
+    // Service d'analyse
+    private let analyzerService = CheckAnalyzerService()
     
     var body: some View {
         NavigationStack {
@@ -120,14 +125,13 @@ struct ContentView: View {
                     CheckFormView(image: image)
                         .environment(\.modelContext, modelContext)
                         .onDisappear {
-                            // Réinitialiser les états après fermeture de la sheet
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                capturedImage = nil
-                                isImageReady = false
-                            }
+                            // Réinitialiser l'état
+                            capturedImage = nil
+                            isImageReady = false
+                            try? modelContext.save()
                         }
                 } else {
-                    // Afficher un message d'erreur avec des détails et des options de récupération
+                    // Afficher un message d'erreur si l'image n'est pas disponible
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
@@ -187,15 +191,46 @@ struct ContentView: View {
                 }
             }
         }
-        .disabled(deletionInProgress) // Désactiver l'interface pendant la suppression
+        .disabled(deletionInProgress || isAnalyzing)
+        .overlay {
+            if isAnalyzing {
+                ZStack {
+                    Color.black.opacity(0.5)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .padding()
+                        
+                        Text("Préparation de l'image...")
+                            .font(.headline)
+                            .padding(.top, 10)
+                    }
+                    .frame(width: 250, height: 150)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(15)
+                    .shadow(radius: 10)
+                }
+            }
+        }
     }
     
     private func captureImageFromCamera() {
+        isAnalyzing = true
+        
         let picker = UIImagePickerController()
         picker.sourceType = .camera
         
         // Créer et stocker le délégué avec une logique plus robuste
         self.imagePickerDelegate = ImagePickerDelegate { image in
+            isAnalyzing = false
+            
+            guard let image = image else {
+                print("Aucune image capturée")
+                return
+            }
+            
             print("Image capturée, taille: \(image.size.width)x\(image.size.height)")
             
             // Assurer que l'image est valide
@@ -230,11 +265,20 @@ struct ContentView: View {
     }
     
     private func importImageFromGallery() {
+        isAnalyzing = true
+        
         let picker = UIImagePickerController()
         picker.sourceType = .photoLibrary
         
         // Créer et stocker le délégué avec une logique plus robuste
         self.imagePickerDelegate = ImagePickerDelegate { image in
+            isAnalyzing = false
+            
+            guard let image = image else {
+                print("Aucune image sélectionnée")
+                return
+            }
+            
             print("Image sélectionnée, taille: \(image.size.width)x\(image.size.height)")
             
             // Assurer que l'image est valide
@@ -285,9 +329,9 @@ struct ContentView: View {
     }
     
     class ImagePickerDelegate: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
-        private let onImagePicked: (UIImage) -> Void
+        private let onImagePicked: (UIImage?) -> Void
         
-        init(onImagePicked: @escaping (UIImage) -> Void) {
+        init(onImagePicked: @escaping (UIImage?) -> Void) {
             self.onImagePicked = onImagePicked
             super.init()
         }
@@ -307,6 +351,7 @@ struct ContentView: View {
             }
             else {
                 print("Aucune image trouvée dans info")
+                self.onImagePicked(nil)
             }
             
             // Attendre un court instant avant de fermer le picker
@@ -318,6 +363,7 @@ struct ContentView: View {
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             print("Sélection d'image annulée")
+            self.onImagePicked(nil)
             picker.dismiss(animated: true)
         }
     }
