@@ -6,5 +6,7 @@
 	<array>
 		<dict/>
 	</array>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Cette app a besoin d'accéder à votre photothèque pour enregistrer une image.</string>
 </dict>
 </plist>
