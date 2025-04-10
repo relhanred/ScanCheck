@@ -133,9 +133,9 @@ struct CustomTabBar: View {
                                 case .stats:
                                     Image(systemName: "chart.bar.fill")
                                 case .add:
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 44))
-                                        .offset(y: -5)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 22, weight: .bold))
+                                        .foregroundColor(.white)
                                 case .export:
                                     Image(systemName: "square.and.arrow.up")
                                 case .profile:
@@ -150,7 +150,7 @@ struct CustomTabBar: View {
                             Circle()
                                 .fill(Color.black)
                                 .frame(width: 56, height: 56)
-                                .offset(y: -5)
+                                .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
                                 .opacity(tab == .add ? 1 : 0)
                         )
                         
