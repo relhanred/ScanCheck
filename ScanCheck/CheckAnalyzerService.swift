@@ -111,7 +111,7 @@ class CheckAnalyzerService {
             return
         }
         
-        // Effectuer la requête
+        
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
                 DispatchQueue.main.async {

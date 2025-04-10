@@ -3,6 +3,8 @@ import SwiftData
 
 @main
 struct ScanCheckApp: App {
+    @StateObject private var appState = AppState.shared
+    
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Check.self,
@@ -18,7 +20,10 @@ struct ScanCheckApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            TabBarView()
+                .sheet(isPresented: $appState.showAddSheet) {
+                    AddCheckView()
+                }
         }
         .modelContainer(sharedModelContainer)
     }
