@@ -64,6 +64,38 @@ struct ContentView: View {
                             print("Image 'test' non trouvée.")
                         }
                     }
+                .onAppear {
+                        if let image = UIImage(named: "cqk-credit-agricole") {
+                            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                            print("Image enregistrée dans la photothèque.")
+                        } else {
+                            print("Image 'test' non trouvée.")
+                        }
+                    }
+                .onAppear {
+                        if let image = UIImage(named: "chk-bp") {
+                            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                            print("Image enregistrée dans la photothèque.")
+                        } else {
+                            print("Image 'test' non trouvée.")
+                        }
+                    }
+                .onAppear {
+                        if let image = UIImage(named: "chq") {
+                            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                            print("Image enregistrée dans la photothèque.")
+                        } else {
+                            print("Image 'test' non trouvée.")
+                        }
+                    }
+                .onAppear {
+                        if let image = UIImage(named: "lcl") {
+                            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                            print("Image enregistrée dans la photothèque.")
+                        } else {
+                            print("Image 'test' non trouvée.")
+                        }
+                    }
                 .blur(radius: showingDeleteConfirmation ? 2 : 0)
                 
                 // Overlay de confirmation de suppression

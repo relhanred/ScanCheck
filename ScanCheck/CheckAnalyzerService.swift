@@ -29,12 +29,55 @@ class CheckAnalyzerService {
         
         // Construire le prompt pour l'API
         let prompt = """
-        Tu es un expert en traitement d'images et en lecture de documents manuscrits et imprimés. Je vais t'envoyer l'image d'un chèque bancaire français. Ton rôle est d'extraire de manière fiable les informations suivantes depuis le chèque, même si certaines données sont manuscrites. Si l'image ne correspond pas à un chèque ou si elle est illisible, retourne un message d'erreur avec le statut "error" et le message "Image non reconnue comme un chèque". Sinon, donne-moi uniquement la réponse au format JSON avec exactement les clés suivantes, même si certaines valeurs ne sont pas lisibles (dans ce cas, mets null) : { "status": "success", "amount_eur": "", "pay_to": "", "bank_name": "", "cheque_number": "", "date": "", "location": "" } Détails : - "status" : indique si l'extraction a réussi, "success" si le chèque est reconnu, "error" si l'image n'est pas un chèque ou ne peut pas être traité. - "amount_eur" : le montant en euros, au format numérique avec deux décimales (ex : 123.45) - "pay_to" : le nom ou l'intitulé de la personne ou entité à qui le chèque est adressé - "bank_name" : le nom de la banque émettrice du chèque - "cheque_number" : les 7 chiffres du numéro du chèque (souvent en bas à droite ou dans la ligne MICR) - "date" : la date du chèque au format JJ/MM/AAAA - "location" : le lieu de rédaction du chèque (souvent indiqué près de la date) Si l'image ne correspond pas à un chèque ou si elle est mal interprétée, retourne uniquement ceci : { "status": "error", "message": "Image non reconnue comme un chèque" } Ne fais aucun autre commentaire, retourne seulement le JSON.
+        Tu es un expert en traitement d’images et OCR, spécialisé dans la lecture de chèques bancaires français et police CMC7, y compris les parties manuscrites et imprimées.
+
+        Je vais t’envoyer une image. Tu dois en extraire de manière fiable les informations d’un chèque, même si certaines sont écrites à la main.
+
+        Si l’image ne correspond pas à un chèque ou est floue/illisible, retourne uniquement ce JSON :
+        {
+          "status": "error",
+          "message": "Image non reconnue comme un chèque"
+        }
+
+        Sinon, retourne **exactement** ce JSON structuré :
+        {
+          "status": "success",
+          "amount_eur": "", 
+          "pay_to": "", 
+          "bank_name": "", 
+          "cheque_number": "", 
+          "date": "", 
+          "location": ""
+        }
+
+        ### Détail des champs à extraire :
+
+        - **amount_eur** : Montant du chèque, en euros, au format numérique avec deux décimales (exemple : 120.50). Priorité au montant en chiffres s’il est présent.
+
+        - **pay_to** : Nom de la personne ou entité à qui le chèque est adressé. Ce nom suit souvent l’expression “à l’ordre de” ou “à”.
+
+        - **bank_name** : Nom de la banque, généralement imprimé en haut à gauche ou en bas du chèque.
+
+        - **cheque_number** : Numéro de chèque (7 chiffres), extrait **uniquement** depuis le **premier groupe de chiffres à gauche dans la bande CMC7** (ligne MICR en bas du chèque). Ignore tous les autres groupes et les symboles.
+
+        - **date** : Date de rédaction du chèque, au format JJ/MM/AAAA. Elle se trouve souvent manuscrite en haut à droite ou à droite du chèque. Complète-la intelligemment si elle est partiellement lisible.
+
+        - **location** : Lieu de rédaction du chèque, généralement une **ville en France**, écrit en haut à droite ou juste au-dessus de la date.
+
+        ### Contraintes importantes :
+
+        - Concentre toi bien sur la lecture du numéro de chèque, n'hésite pas à faire plusieurs scan et à comparer les résultats les plus probables.
+        - Le numéro de chèque est toujours un groupe de **7 chiffres consécutifs**, situé **à gauche** de la bande CMC7 (ligne magnétique en bas du chèque). **Ne pas tenir compte des autres groupes à droite.**
+        - Si une information est manquante, partiellement illisible ou absente, remplace-la par `null`.
+
+        Ta réponse doit être **exclusivement** le JSON final, sans aucun commentaire ou explication.
+
+
         """
         
         // Construire la requête pour l'API ChatGPT en utilisant le nouveau format
         let requestBody: [String: Any] = [
-            "model": "gpt-4o-mini",  // Utilisation du modèle mentionné dans l'exemple JavaScript
+            "model": "gpt-4o",
             "messages": [
                 [
                     "role": "user",
