@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var checkToDelete: Check? = nil
     @State private var showingDeleteConfirmation = false
     @State private var deletionInProgress = false
+    @StateObject private var appState = AppState.shared
     
     var body: some View {
         NavigationStack {
@@ -14,7 +15,7 @@ struct HomeView: View {
                 VStack {
                     if checks.isEmpty {
                         EmptyChecksView(onAddButtonTapped: {
-                            AppState.shared.showAddSheet = true
+                            appState.showAddSheet = true
                         })
                     } else {
                         List {
@@ -89,6 +90,20 @@ struct HomeView: View {
                 }
             }
             .navigationTitle("Mes Chèques")
+            .toolbar(content: {
+                if !checks.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: {
+                            appState.showAddSheet = true
+                        }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.black)
+                                .symbolEffect(.bounce, options: .repeating, value: checks.isEmpty)
+                        }
+                    }
+                }
+            })
             .disabled(deletionInProgress)
         }
     }
@@ -109,8 +124,6 @@ struct HomeView: View {
         }
     }
 }
-
-
 
 #Preview {
     HomeView()

@@ -3,9 +3,10 @@ import SwiftUI
 struct TabBarView: View {
     @State private var selectedTab: Tab = .home
     @Namespace private var tabBarNamespace
+    @StateObject private var appState = AppState.shared
     
     enum Tab {
-        case home, add, export, profile
+        case home, stats, add, export, profile
     }
     
     var body: some View {
@@ -13,6 +14,9 @@ struct TabBarView: View {
             TabView(selection: $selectedTab) {
                 HomeView()
                     .tag(Tab.home)
+                
+                StatsView()
+                    .tag(Tab.stats)
                 
                 EmptyView()
                     .tag(Tab.add)
@@ -33,14 +37,14 @@ struct TabBarView: View {
 struct CustomTabBar: View {
     @Binding var selectedTab: TabBarView.Tab
     let namespace: Namespace.ID
-    @State private var showAddSheet = false
+    @StateObject private var appState = AppState.shared
     
     var body: some View {
         HStack(spacing: 0) {
-            ForEach([TabBarView.Tab.home, .add, .export, .profile], id: \.self) { tab in
+            ForEach([TabBarView.Tab.home, .stats, .add, .export, .profile], id: \.self) { tab in
                 Button {
                     if tab == .add {
-                        showAddSheet = true
+                        appState.showAddSheet = true
                     } else {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             selectedTab = tab
@@ -60,6 +64,8 @@ struct CustomTabBar: View {
                                 switch tab {
                                 case .home:
                                     Image(systemName: "house.fill")
+                                case .stats:
+                                    Image(systemName: "chart.bar.fill")
                                 case .add:
                                     Image(systemName: "plus.circle.fill")
                                         .font(.system(size: 44))
@@ -76,7 +82,9 @@ struct CustomTabBar: View {
                         }
                         
                         if tab != .add {
-                            Text(tab == .home ? "Accueil" : tab == .export ? "Export" : "Profil")
+                            Text(tab == .home ? "Accueil" :
+                                 tab == .stats ? "Stats" :
+                                 tab == .export ? "Export" : "Profil")
                                 .font(.system(size: 10))
                                 .foregroundColor(selectedTab == tab ? .black : .gray)
                         } else {
@@ -96,9 +104,6 @@ struct CustomTabBar: View {
                 .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: -2)
                 .ignoresSafeArea()
         )
-        .sheet(isPresented: $showAddSheet) {
-            AddCheckView()
-        }
     }
 }
 
