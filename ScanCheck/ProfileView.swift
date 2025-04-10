@@ -6,6 +6,11 @@ struct ProfileView: View {
     @State private var isPremium = false
     @State private var showPremiumOptions = false
     @Query private var checks: [Check]
+    @State private var showingCamera = false
+    @State private var showingImagePicker = false
+    @State private var capturedImage: UIImage? = nil
+    @State private var isImageReady = false
+    @State private var isAnalyzing = false
     
     private let freeChecksLimit = 5
     private let remainingFreeChecks: Int
@@ -148,6 +153,60 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showPremiumOptions) {
                 PremiumOptionsView()
+            }
+            .sheet(isPresented: $showingCamera) {
+                CameraCaptureView { image in
+                    handleCapturedImage(image)
+                }
+            }
+            .sheet(isPresented: $showingImagePicker) {
+                GalleryPickerView { image in
+                    handleCapturedImage(image)
+                }
+            }
+            .sheet(isPresented: $isImageReady) {
+                if let image = capturedImage {
+                    CheckFormView(image: image)
+                }
+            }
+            .overlay {
+                if isAnalyzing {
+                    Color.black.opacity(0.5)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .padding()
+                        
+                        Text("Préparation de l'image...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.top, 10)
+                    }
+                    .frame(width: 250, height: 150)
+                    .background(Color.black.opacity(0.8))
+                    .cornerRadius(15)
+                }
+            }
+        }
+    }
+    
+    private func handleCapturedImage(_ image: UIImage?) {
+        isAnalyzing = true
+        
+        guard let image = image else {
+            isAnalyzing = false
+            return
+        }
+        
+        DispatchQueue.main.async {
+            let imageCopy = image.copy() as! UIImage
+            self.capturedImage = imageCopy
+            self.isAnalyzing = false
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.isImageReady = true
             }
         }
     }

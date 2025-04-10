@@ -8,6 +8,11 @@ struct HomeView: View {
     @State private var showingDeleteConfirmation = false
     @State private var deletionInProgress = false
     @StateObject private var appState = AppState.shared
+    @State private var showingCamera = false
+    @State private var showingImagePicker = false
+    @State private var capturedImage: UIImage? = nil
+    @State private var isImageReady = false
+    @State private var isAnalyzing = false
     
     var body: some View {
         NavigationStack {
@@ -15,7 +20,7 @@ struct HomeView: View {
                 VStack {
                     if checks.isEmpty {
                         EmptyChecksView(onAddButtonTapped: {
-                            appState.showAddSheet = true
+                            showingImagePicker = true
                         })
                     } else {
                         List {
@@ -90,21 +95,42 @@ struct HomeView: View {
                 }
             }
             .navigationTitle("Mes Chèques")
-            .toolbar(content: {
-                if !checks.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: {
-                            appState.showAddSheet = true
-                        }) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(.black)
-                                .symbolEffect(.bounce, options: .repeating, value: checks.isEmpty)
-                        }
-                    }
-                }
-            })
             .disabled(deletionInProgress)
+            .sheet(isPresented: $showingCamera) {
+                CameraCaptureView { image in
+                    handleCapturedImage(image)
+                }
+            }
+            .sheet(isPresented: $showingImagePicker) {
+                GalleryPickerView { image in
+                    handleCapturedImage(image)
+                }
+            }
+            .sheet(isPresented: $isImageReady) {
+                if let image = capturedImage {
+                    CheckFormView(image: image)
+                }
+            }
+            .overlay {
+                if isAnalyzing {
+                    Color.black.opacity(0.5)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .padding()
+                        
+                        Text("Préparation de l'image...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.top, 10)
+                    }
+                    .frame(width: 250, height: 150)
+                    .background(Color.black.opacity(0.8))
+                    .cornerRadius(15)
+                }
+            }
         }
     }
     
@@ -121,6 +147,25 @@ struct HomeView: View {
         withAnimation(.easeInOut(duration: 0.3)) {
             modelContext.delete(check)
             try? modelContext.save()
+        }
+    }
+    
+    private func handleCapturedImage(_ image: UIImage?) {
+        isAnalyzing = true
+        
+        guard let image = image else {
+            isAnalyzing = false
+            return
+        }
+        
+        DispatchQueue.main.async {
+            let imageCopy = image.copy() as! UIImage
+            self.capturedImage = imageCopy
+            self.isAnalyzing = false
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.isImageReady = true
+            }
         }
     }
 }

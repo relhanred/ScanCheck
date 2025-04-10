@@ -5,13 +5,18 @@ import Charts
 struct StatsView: View {
     @Query private var checks: [Check]
     @State private var selectedTab = 0
+    @State private var showingCamera = false
+    @State private var showingImagePicker = false
+    @State private var capturedImage: UIImage? = nil
+    @State private var isImageReady = false
+    @State private var isAnalyzing = false
     
     var body: some View {
         NavigationStack {
             Group {
                 if checks.isEmpty {
                     EmptyChecksView(onAddButtonTapped: {
-                        AppState.shared.showAddSheet = true
+                        showingImagePicker = true
                     })
                 } else {
                     VStack {
@@ -43,6 +48,41 @@ struct StatsView: View {
                 }
             }
             .navigationTitle("Statistiques")
+            .sheet(isPresented: $showingCamera) {
+                CameraCaptureView { image in
+                    handleCapturedImage(image)
+                }
+            }
+            .sheet(isPresented: $showingImagePicker) {
+                GalleryPickerView { image in
+                    handleCapturedImage(image)
+                }
+            }
+            .sheet(isPresented: $isImageReady) {
+                if let image = capturedImage {
+                    CheckFormView(image: image)
+                }
+            }
+            .overlay {
+                if isAnalyzing {
+                    Color.black.opacity(0.5)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .padding()
+                        
+                        Text("Préparation de l'image...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.top, 10)
+                    }
+                    .frame(width: 250, height: 150)
+                    .background(Color.black.opacity(0.8))
+                    .cornerRadius(15)
+                }
+            }
         }
     }
     
@@ -251,6 +291,25 @@ struct StatsView: View {
         formatter.timeStyle = .none
         formatter.locale = Locale(identifier: "fr_FR")
         return formatter.string(from: date)
+    }
+    
+    private func handleCapturedImage(_ image: UIImage?) {
+        isAnalyzing = true
+        
+        guard let image = image else {
+            isAnalyzing = false
+            return
+        }
+        
+        DispatchQueue.main.async {
+            let imageCopy = image.copy() as! UIImage
+            self.capturedImage = imageCopy
+            self.isAnalyzing = false
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.isImageReady = true
+            }
+        }
     }
 }
 

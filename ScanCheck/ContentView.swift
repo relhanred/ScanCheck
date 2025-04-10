@@ -7,6 +7,38 @@ struct ContentView: View {
     
     var body: some View {
         TabBarView()
+            .onAppear {
+                if let image = UIImage(named: "cqk-credit-agricole") {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    print("Image enregistrée dans la photothèque.")
+                } else {
+                    print("Image 'cqk-credit-agricole' non trouvée.")
+                }
+            }
+            .onAppear {
+                if let image = UIImage(named: "chk-bp") {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    print("Image enregistrée dans la photothèque.")
+                } else {
+                    print("Image 'chk-bp' non trouvée.")
+                }
+            }
+            .onAppear {
+                if let image = UIImage(named: "chq") {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    print("Image enregistrée dans la photothèque.")
+                } else {
+                    print("Image 'chq' non trouvée.")
+                }
+            }
+            .onAppear {
+                if let image = UIImage(named: "lcl") {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    print("Image enregistrée dans la photothèque.")
+                } else {
+                    print("Image 'lcl' non trouvée.")
+                }
+            }
     }
 }
 

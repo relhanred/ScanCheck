@@ -4,6 +4,11 @@ struct TabBarView: View {
     @State private var selectedTab: Tab = .home
     @Namespace private var tabBarNamespace
     @StateObject private var appState = AppState.shared
+    @State private var showingCamera = false
+    @State private var showingImagePicker = false
+    @State private var capturedImage: UIImage? = nil
+    @State private var isImageReady = false
+    @State private var isAnalyzing = false
     
     enum Tab {
         case home, stats, add, export, profile
@@ -29,7 +34,65 @@ struct TabBarView: View {
             }
             .ignoresSafeArea(edges: .bottom)
             
-            CustomTabBar(selectedTab: $selectedTab, namespace: tabBarNamespace)
+            CustomTabBar(selectedTab: $selectedTab, namespace: tabBarNamespace, showCamera: {
+                showingCamera = true
+            }, showImagePicker: {
+                showingImagePicker = true
+            })
+        }
+        .sheet(isPresented: $showingCamera) {
+            CameraCaptureView { image in
+                handleCapturedImage(image)
+            }
+        }
+        .sheet(isPresented: $showingImagePicker) {
+            GalleryPickerView { image in
+                handleCapturedImage(image)
+            }
+        }
+        .sheet(isPresented: $isImageReady) {
+            if let image = capturedImage {
+                CheckFormView(image: image)
+            }
+        }
+        .overlay {
+            if isAnalyzing {
+                Color.black.opacity(0.5)
+                    .edgesIgnoringSafeArea(.all)
+                
+                VStack {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .padding()
+                    
+                    Text("Préparation de l'image...")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.top, 10)
+                }
+                .frame(width: 250, height: 150)
+                .background(Color.black.opacity(0.8))
+                .cornerRadius(15)
+            }
+        }
+    }
+    
+    private func handleCapturedImage(_ image: UIImage?) {
+        isAnalyzing = true
+        
+        guard let image = image else {
+            isAnalyzing = false
+            return
+        }
+        
+        DispatchQueue.main.async {
+            let imageCopy = image.copy() as! UIImage
+            self.capturedImage = imageCopy
+            self.isAnalyzing = false
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.isImageReady = true
+            }
         }
     }
 }
@@ -38,13 +101,16 @@ struct CustomTabBar: View {
     @Binding var selectedTab: TabBarView.Tab
     let namespace: Namespace.ID
     @StateObject private var appState = AppState.shared
+    var showCamera: () -> Void
+    var showImagePicker: () -> Void
+    @State private var showingAddOptions = false
     
     var body: some View {
         HStack(spacing: 0) {
             ForEach([TabBarView.Tab.home, .stats, .add, .export, .profile], id: \.self) { tab in
                 Button {
                     if tab == .add {
-                        appState.showAddSheet = true
+                        showingAddOptions = true
                     } else {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             selectedTab = tab
@@ -77,9 +143,16 @@ struct CustomTabBar: View {
                                 }
                             }
                             .font(tab == .add ? .title : .body)
-                            .foregroundColor(selectedTab == tab ? .black : .gray)
+                            .foregroundColor(tab == .add ? .white : (selectedTab == tab ? .black : .gray))
                             .frame(width: 32, height: 24)
                         }
+                        .background(
+                            Circle()
+                                .fill(Color.black)
+                                .frame(width: 56, height: 56)
+                                .offset(y: -5)
+                                .opacity(tab == .add ? 1 : 0)
+                        )
                         
                         if tab != .add {
                             Text(tab == .home ? "Accueil" :
@@ -104,6 +177,21 @@ struct CustomTabBar: View {
                 .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: -2)
                 .ignoresSafeArea()
         )
+        .actionSheet(isPresented: $showingAddOptions) {
+            ActionSheet(
+                title: Text("Ajouter un chèque"),
+                message: Text("Choisissez comment scanner votre chèque"),
+                buttons: [
+                    .default(Text("Prendre une photo")) {
+                        showCamera()
+                    },
+                    .default(Text("Importer depuis la galerie")) {
+                        showImagePicker()
+                    },
+                    .cancel()
+                ]
+            )
+        }
     }
 }
 

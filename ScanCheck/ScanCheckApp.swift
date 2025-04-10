@@ -22,10 +22,6 @@ struct ScanCheckApp: App {
         WindowGroup {
             ContentView()
                 .modelContainer(sharedModelContainer)
-                .sheet(isPresented: $appState.showAddSheet) {
-                    AddCheckView()
-                        .modelContainer(sharedModelContainer)
-                }
         }
     }
 }

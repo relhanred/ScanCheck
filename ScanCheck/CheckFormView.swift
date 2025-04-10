@@ -16,19 +16,16 @@ struct CheckFormView: View {
     @State private var notes = ""
     @State private var showDatePicker = false
     
-    // États pour l'analyse du chèque
     @State private var isAnalyzing = true
     @State private var analysisError: String? = nil
     @State private var showInfoTooltip = false
     
-    // États pour la validation
     @State private var amountError = false
     @State private var amountErrorMessage = ""
     @State private var checkNumberError = false
     @State private var checkNumberErrorMessage = ""
     @State private var showValidationErrors = false
     
-    // Service d'analyse
     private let analyzerService = CheckAnalyzerService()
     
     var body: some View {
@@ -120,7 +117,6 @@ struct CheckFormView: View {
                             
                             
                             HStack(alignment: .top, spacing: 10) {
-                                // Lieu
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text("Lieu")
                                         .font(.caption)
@@ -200,7 +196,6 @@ struct CheckFormView: View {
                         .disabled(isAnalyzing)
                         .opacity(isAnalyzing ? 0.6 : 1)
                         
-                        // Bouton de sauvegarde
                         Button(action: validateAndSaveCheck) {
                             Text("Enregistrer le chèque")
                                 .font(.headline)
@@ -248,7 +243,6 @@ struct CheckFormView: View {
                     .cornerRadius(15)
                     .shadow(radius: 10)
                     .onAppear {
-                        // Afficher l'info-bulle après 3 secondes
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                             withAnimation {
                                 showInfoTooltip = true
@@ -274,10 +268,6 @@ struct CheckFormView: View {
             }
             .navigationBarBackButtonHidden(true)
             .onAppear {
-                analyzeCheckImage()
-            }
-            .onChange(of: image) { oldValue, newValue in
-                // Si l'image change, réanalyser
                 analyzeCheckImage()
             }
         }
@@ -409,11 +399,10 @@ struct CheckFormView: View {
         
         do {
             try modelContext.save()
+            dismiss()
         } catch {
             print("Échec de l'enregistrement du chèque: \(error)")
         }
-        
-        dismiss()
     }
 }
 
