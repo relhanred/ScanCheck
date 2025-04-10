@@ -23,21 +23,18 @@ struct StatsView: View {
                         Picker("", selection: $selectedTab) {
                             Text("Résumé").tag(0)
                             Text("Par banque").tag(1)
-                            Text("Dans le temps").tag(2)
                         }
                         .pickerStyle(.segmented)
                         .padding(.horizontal)
                         .padding(.top)
                         
                         ScrollView {
-                            VStack(spacing: 20) {
+                            VStack(spacing: 24) {
                                 switch selectedTab {
                                 case 0:
                                     summaryView
                                 case 1:
                                     bankChartView
-                                case 2:
-                                    timeChartView
                                 default:
                                     summaryView
                                 }
@@ -87,105 +84,85 @@ struct StatsView: View {
     }
     
     private var summaryView: some View {
-        VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Résumé global")
-                    .font(.headline)
-                    .padding(.bottom, 5)
+        VStack(spacing: 24) {
+            Text("Résumé global")
+                .font(.title3)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 8)
+            
+            HStack(spacing: 16) {
+                SummaryCard(
+                    title: "Total chèques",
+                    value: "\(checks.count)",
+                    icon: "doc.text.viewfinder",
+                    color: .blue
+                )
                 
-                HStack {
-                    StatCard(
-                        title: "Total chèques",
-                        value: "\(checks.count)",
-                        icon: "doc.text.viewfinder",
-                        color: .blue
-                    )
-                    
-                    StatCard(
-                        title: "Montant total",
-                        value: String(format: "%.2f €", checks.reduce(0) { $0 + $1.amount }),
-                        icon: "eurosign.circle.fill",
-                        color: .green
-                    )
-                }
-                
+                SummaryCard(
+                    title: "Montant total",
+                    value: String(format: "%.2f €", checks.reduce(0) { $0 + $1.amount }),
+                    icon: "eurosign.circle.fill",
+                    color: .green
+                )
+            }
+            
+            VStack(spacing: 16) {
                 if let maxCheck = checks.max(by: { $0.amount < $1.amount }) {
-                    StatCard(
+                    DetailCard(
                         title: "Chèque le plus élevé",
                         value: String(format: "%.2f €", maxCheck.amount),
+                        subtitle: maxCheck.recipient ?? maxCheck.bank ?? "Sans détail",
                         icon: "arrow.up.circle.fill",
-                        color: .orange,
-                        fullWidth: true
+                        color: .orange
                     )
                 }
                 
                 if let minCheck = checks.min(by: { $0.amount < $1.amount }) {
-                    StatCard(
+                    DetailCard(
                         title: "Chèque le plus petit",
                         value: String(format: "%.2f €", minCheck.amount),
+                        subtitle: minCheck.recipient ?? minCheck.bank ?? "Sans détail",
                         icon: "arrow.down.circle.fill",
-                        color: .purple,
-                        fullWidth: true
+                        color: .purple
                     )
                 }
                 
-                StatCard(
-                    title: "Montant moyen",
+                DetailCard(
+                    title: "Montant moyen par chèque",
                     value: String(format: "%.2f €", checks.isEmpty ? 0 : checks.reduce(0) { $0 + $1.amount } / Double(checks.count)),
+                    subtitle: "Calculé sur \(checks.count) chèque\(checks.count > 1 ? "s" : "")",
                     icon: "number.circle.fill",
-                    color: .indigo,
-                    fullWidth: true
+                    color: .indigo
                 )
             }
             
             Divider()
+                .padding(.vertical, 8)
             
             lastChecksView
         }
     }
     
     private var lastChecksView: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Derniers chèques")
-                .font(.headline)
+                .font(.title3)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
             
             ForEach(checks.sorted(by: { $0.creationDate > $1.creationDate }).prefix(3)) { check in
-                HStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.2))
-                        .frame(width: 40, height: 40)
-                        .overlay(
-                            Image(systemName: "eurosign")
-                                .foregroundColor(.blue)
-                        )
-                    
-                    VStack(alignment: .leading) {
-                        Text(check.recipient ?? check.bank ?? "Chèque")
-                            .fontWeight(.medium)
-                        
-                        if let checkDate = check.checkDate {
-                            Text(formatDate(checkDate))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    Text(String(format: "%.2f €", check.amount))
-                        .fontWeight(.medium)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(10)
+                RecentCheckCard(check: check)
             }
         }
     }
     
     private var bankChartView: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 24) {
             Text("Répartition par banque")
-                .font(.headline)
+                .font(.title3)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
             
             let bankData = getBankData()
             
@@ -196,60 +173,26 @@ struct StatsView: View {
                     Text("Ajoutez des banques à vos chèques pour voir des statistiques")
                 }
             } else {
-                Chart(bankData) { item in
-                    BarMark(
-                        x: .value("Montant", item.amount),
-                        y: .value("Banque", item.name)
-                    )
-                    .foregroundStyle(by: .value("Banque", item.name))
-                }
-                .frame(height: CGFloat(bankData.count * 50 + 50))
-                
-                Divider()
-                
-                ForEach(bankData) { item in
-                    HStack {
-                        Text(item.name)
-                        Spacer()
-                        Text("\(item.count) chèque\(item.count > 1 ? "s" : "")")
-                            .foregroundColor(.secondary)
-                        Text(String(format: "%.2f €", item.amount))
-                            .fontWeight(.medium)
+                VStack(alignment: .leading, spacing: 24) {
+                    Chart(bankData) { item in
+                        BarMark(
+                            x: .value("Montant", item.amount),
+                            y: .value("Banque", item.name)
+                        )
+                        .foregroundStyle(by: .value("Banque", item.name))
+                        .cornerRadius(8)
                     }
-                    .padding(.vertical, 5)
-                }
-            }
-        }
-    }
-    
-    private var timeChartView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Évolution dans le temps")
-                .font(.headline)
-            
-            let timeData = getTimeData()
-            
-            if timeData.isEmpty {
-                ContentUnavailableView {
-                    Label("Données insuffisantes", systemImage: "chart.line.uptrend.xyaxis")
-                } description: {
-                    Text("Ajoutez plus de chèques pour voir des tendances")
-                }
-            } else {
-                Chart(timeData) { item in
-                    LineMark(
-                        x: .value("Date", item.date),
-                        y: .value("Montant", item.amount)
-                    )
-                    .interpolationMethod(.catmullRom)
+                    .frame(height: CGFloat(bankData.count * 60 + 50))
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(12)
                     
-                    PointMark(
-                        x: .value("Date", item.date),
-                        y: .value("Montant", item.amount)
-                    )
+                    VStack(spacing: 16) {
+                        ForEach(bankData) { item in
+                            BankItemCard(bankItem: item)
+                        }
+                    }
                 }
-                .frame(height: 250)
-                .chartYScale(domain: 0...timeData.map { $0.amount }.max()! * 1.1)
             }
         }
     }
@@ -267,22 +210,6 @@ struct StatsView: View {
                 count: bankChecks.count
             )
         }.sorted { $0.amount > $1.amount }
-    }
-    
-    private func getTimeData() -> [TimeData] {
-        let dateChecks = checks.filter { $0.checkDate != nil }
-        
-        guard dateChecks.count > 1 else { return [] }
-        
-        let sorted = dateChecks.sorted { $0.checkDate! < $1.checkDate! }
-        
-        return sorted.map { check in
-            TimeData(
-                id: check.id,
-                date: check.checkDate!,
-                amount: check.amount
-            )
-        }
     }
     
     private func formatDate(_ date: Date) -> String {
@@ -313,19 +240,21 @@ struct StatsView: View {
     }
 }
 
-struct StatCard: View {
+struct SummaryCard: View {
     let title: String
     let value: String
     let icon: String
     let color: Color
-    var fullWidth: Bool = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
                 Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(color)
+                    .font(.system(size: 20))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(color)
+                    .cornerRadius(10)
                 
                 Text(title)
                     .font(.subheadline)
@@ -333,13 +262,141 @@ struct StatCard: View {
             }
             
             Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+                .padding(.leading, 8)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.gray.opacity(0.1))
+        )
+    }
+}
+
+struct DetailCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(.white)
+                .frame(width: 50, height: 50)
+                .background(color)
+                .cornerRadius(12)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
         }
         .padding()
-        .frame(maxWidth: fullWidth ? .infinity : nil)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.gray.opacity(0.1))
+        )
+    }
+}
+
+struct RecentCheckCard: View {
+    let check: Check
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            if let imageData = check.imageData, let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                Image(systemName: "doc.text.viewfinder")
+                    .font(.system(size: 24))
+                    .foregroundColor(.white)
+                    .frame(width: 50, height: 50)
+                    .background(Color.blue)
+                    .cornerRadius(8)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(check.recipient ?? check.bank ?? "Chèque")
+                    .font(.headline)
+                
+                if let checkDate = check.checkDate {
+                    Text(formatDate(checkDate: checkDate))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            Text(String(format: "%.2f €", check.amount))
+                .font(.headline)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    private func formatDate(checkDate: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        formatter.locale = Locale(identifier: "fr_FR")
+        return formatter.string(from: checkDate)
+    }
+}
+
+struct BankItemCard: View {
+    let bankItem: BankData
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Circle()
+                .fill(Color.blue.opacity(0.2))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Text(String(bankItem.name.prefix(1).uppercased()))
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                )
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(bankItem.name)
+                    .font(.headline)
+                
+                Text("\(bankItem.count) chèque\(bankItem.count > 1 ? "s" : "")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Text(String(format: "%.2f €", bankItem.amount))
+                .font(.headline)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
                 .fill(Color.gray.opacity(0.1))
         )
     }
