@@ -2,11 +2,26 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict/>
-	</array>
-	<key>NSPhotoLibraryAddUsageDescription</key>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.image</string>
+            </array>
+            <key>NSDocumentClass</key>
+            <string></string>
+        </dict>
+    </array>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+    <key>NSPhotoLibraryAddUsageDescription</key>
     <string>Cette app a besoin d'accéder à votre photothèque pour enregistrer une image.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Cette app a besoin d'accéder à votre photothèque pour importer des images de chèques.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Cette app a besoin d'accéder à votre caméra pour photographier des chèques.</string>
 </dict>
 </plist>

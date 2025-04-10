@@ -3,14 +3,12 @@ import UIKit
 
 struct AddCheckView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var showingSourceOptions = false
+    @Environment(\.modelContext) private var modelContext
     @State private var showingCamera = false
     @State private var showingImagePicker = false
     @State private var capturedImage: UIImage? = nil
     @State private var isImageReady = false
     @State private var isAnalyzing = false
-    
-    @State private var imagePickerDelegate: ImagePickerDelegate?
     
     var body: some View {
         NavigationStack {
@@ -31,7 +29,7 @@ struct AddCheckView: View {
                 
                 VStack(spacing: 16) {
                     Button {
-                        captureImageFromCamera()
+                        showingCamera = true
                     } label: {
                         HStack {
                             Image(systemName: "camera.fill")
@@ -48,7 +46,7 @@ struct AddCheckView: View {
                     }
                     
                     Button {
-                        importImageFromGallery()
+                        showingImagePicker = true
                     } label: {
                         HStack {
                             Image(systemName: "photo.fill")
@@ -86,6 +84,16 @@ struct AddCheckView: View {
                     CheckFormView(image: image)
                 }
             }
+            .sheet(isPresented: $showingCamera) {
+                CameraCaptureView { image in
+                    handleCapturedImage(image)
+                }
+            }
+            .sheet(isPresented: $showingImagePicker) {
+                GalleryPickerView { image in
+                    handleCapturedImage(image)
+                }
+            }
             .overlay {
                 if isAnalyzing {
                     Color.black.opacity(0.5)
@@ -109,98 +117,97 @@ struct AddCheckView: View {
         }
     }
     
-    private func captureImageFromCamera() {
+    private func handleCapturedImage(_ image: UIImage?) {
         isAnalyzing = true
         
-        let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        
-        self.imagePickerDelegate = ImagePickerDelegate { image in
+        guard let image = image else {
             isAnalyzing = false
-            
-            guard let image = image else {
-                return
-            }
-            
-            DispatchQueue.main.async {
-                let imageCopy = image.copy() as! UIImage
-                self.capturedImage = imageCopy
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    self.isImageReady = true
-                }
-            }
+            return
         }
         
-        picker.delegate = self.imagePickerDelegate
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let rootVC = window.rootViewController {
-            rootVC.present(picker, animated: true)
-        }
-    }
-    
-    private func importImageFromGallery() {
-        isAnalyzing = true
-        
-        let picker = UIImagePickerController()
-        picker.sourceType = .photoLibrary
-        
-        self.imagePickerDelegate = ImagePickerDelegate { image in
-            isAnalyzing = false
+        DispatchQueue.main.async {
+            let imageCopy = image.copy() as! UIImage
+            self.capturedImage = imageCopy
+            self.isAnalyzing = false
             
-            guard let image = image else {
-                return
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.isImageReady = true
             }
-            
-            DispatchQueue.main.async {
-                let imageCopy = image.copy() as! UIImage
-                self.capturedImage = imageCopy
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    self.isImageReady = true
-                }
-            }
-        }
-        
-        picker.delegate = self.imagePickerDelegate
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let rootVC = window.rootViewController {
-            rootVC.present(picker, animated: true)
         }
     }
 }
 
-class ImagePickerDelegate: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
-    private let onImagePicked: (UIImage?) -> Void
+struct CameraCaptureView: UIViewControllerRepresentable {
+    var onImageCaptured: (UIImage?) -> Void
     
-    init(onImagePicked: @escaping (UIImage?) -> Void) {
-        self.onImagePicked = onImagePicked
-        super.init()
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .camera
+        picker.allowsEditing = false
+        return picker
     }
     
-    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-        if let editedImage = info[.editedImage] as? UIImage {
-            self.onImagePicked(editedImage)
-        }
-        else if let originalImage = info[.originalImage] as? UIImage {
-            self.onImagePicked(originalImage)
-        }
-        else {
-            self.onImagePicked(nil)
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onImageCaptured: onImageCaptured)
+    }
+    
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        var onImageCaptured: (UIImage?) -> Void
+        
+        init(onImageCaptured: @escaping (UIImage?) -> Void) {
+            self.onImageCaptured = onImageCaptured
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            let image = info[.originalImage] as? UIImage
+            onImageCaptured(image)
+            picker.dismiss(animated: true)
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onImageCaptured(nil)
             picker.dismiss(animated: true)
         }
     }
+}
+
+struct GalleryPickerView: UIViewControllerRepresentable {
+    var onImageSelected: (UIImage?) -> Void
     
-    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-        self.onImagePicked(nil)
-        picker.dismiss(animated: true)
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        picker.allowsEditing = false
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onImageSelected: onImageSelected)
+    }
+    
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        var onImageSelected: (UIImage?) -> Void
+        
+        init(onImageSelected: @escaping (UIImage?) -> Void) {
+            self.onImageSelected = onImageSelected
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            let image = info[.originalImage] as? UIImage
+            onImageSelected(image)
+            picker.dismiss(animated: true)
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onImageSelected(nil)
+            picker.dismiss(animated: true)
+        }
     }
 }
 

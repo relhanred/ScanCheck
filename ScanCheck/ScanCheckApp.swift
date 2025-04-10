@@ -21,9 +21,6 @@ struct ScanCheckApp: App {
     var body: some Scene {
         WindowGroup {
             TabBarView()
-                .sheet(isPresented: $appState.showAddSheet) {
-                    AddCheckView()
-                }
         }
         .modelContainer(sharedModelContainer)
     }
