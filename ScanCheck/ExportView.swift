@@ -10,6 +10,8 @@ struct ExportView: View {
     @State private var capturedImage: UIImage? = nil
     @State private var isImageReady = false
     @State private var isAnalyzing = false
+    @StateObject private var appState = AppState.shared
+    @State private var showPremiumView = false
     
     enum ExportFormat: String {
         case pdf = "PDF"
@@ -26,7 +28,14 @@ struct ExportView: View {
                         Text("Ajoutez d'abord des chèques pour pouvoir les exporter")
                     } actions: {
                         Button {
-                            showingImagePicker = true
+                            let modelContainer = try? ModelContainer(for: Check.self)
+                            let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+                            
+                            if canAddMoreChecks {
+                                showingImagePicker = true
+                            } else {
+                                showPremiumView = true
+                            }
                         } label: {
                             Text("Ajouter un chèque")
                         }
@@ -114,7 +123,7 @@ struct ExportView: View {
             .navigationTitle("Export")
             .alert("Fonctionnalité Premium", isPresented: $showingPremiumAlert) {
                 Button("S'abonner", role: .none) {
-                    // Action pour s'abonner
+                    showPremiumView = true
                 }
                 Button("Plus tard", role: .cancel) {}
             } message: {
@@ -137,6 +146,11 @@ struct ExportView: View {
             .sheet(isPresented: $isImageReady) {
                 if let image = capturedImage {
                     CheckFormView(image: image)
+                }
+            }
+            .fullScreenCover(isPresented: $showPremiumView) {
+                NavigationStack {
+                    PremiumBlockView()
                 }
             }
             .overlay {
@@ -167,6 +181,16 @@ struct ExportView: View {
         
         guard let image = image else {
             isAnalyzing = false
+            return
+        }
+        
+        // Vérifier si l'utilisateur peut ajouter un nouveau chèque
+        let modelContainer = try? ModelContainer(for: Check.self)
+        let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+        
+        if !canAddMoreChecks {
+            isAnalyzing = false
+            showPremiumView = true
             return
         }
         

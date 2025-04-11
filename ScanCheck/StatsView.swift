@@ -69,6 +69,11 @@ struct StatsView: View {
                     CheckFormView(image: image)
                 }
             }
+            .fullScreenCover(isPresented: $showPremiumView) {
+                NavigationStack {
+                    PremiumBlockView()
+                }
+            }
             .overlay {
                 if isAnalyzing {
                     Color.black.opacity(0.5)
@@ -87,11 +92,6 @@ struct StatsView: View {
                     .frame(width: 250, height: 150)
                     .background(Color.black.opacity(0.8))
                     .cornerRadius(15)
-                }
-            }
-            .fullScreenCover(isPresented: $showPremiumView) {
-                NavigationStack {
-                    PremiumBlockView()
                 }
             }
         }
@@ -239,6 +239,16 @@ struct StatsView: View {
         
         guard let image = image else {
             isAnalyzing = false
+            return
+        }
+        
+        // Vérifier si l'utilisateur peut ajouter un nouveau chèque
+        let modelContainer = try? ModelContainer(for: Check.self)
+        let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+        
+        if !canAddMoreChecks {
+            isAnalyzing = false
+            showPremiumView = true
             return
         }
         
