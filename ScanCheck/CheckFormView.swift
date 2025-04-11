@@ -4,6 +4,7 @@ import SwiftData
 struct CheckFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var appState = AppState.shared
     
     let image: UIImage
     
@@ -19,6 +20,7 @@ struct CheckFormView: View {
     @State private var isAnalyzing = true
     @State private var analysisError: String? = nil
     @State private var showInfoTooltip = false
+    @State private var isNavigationActive = false
     
     @State private var amountError = false
     @State private var amountErrorMessage = ""
@@ -267,6 +269,9 @@ struct CheckFormView: View {
                 }
             }
             .navigationBarBackButtonHidden(true)
+            .navigationDestination(isPresented: $isNavigationActive) {
+                PremiumBlockView()
+            }
             .onAppear {
                 analyzeCheckImage()
             }
@@ -368,6 +373,16 @@ struct CheckFormView: View {
     }
     
     private func validateAndSaveCheck() {
+        // Vérifier si l'utilisateur peut ajouter plus de chèques
+        let modelContainer = try? ModelContainer(for: Check.self)
+        let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+        
+        if !canAddMoreChecks {
+            // Montrer la vue premium block
+            isNavigationActive = true
+            return
+        }
+        
         validateAmount(amount)
         validateCheckNumber(checkNumber)
         showValidationErrors = true

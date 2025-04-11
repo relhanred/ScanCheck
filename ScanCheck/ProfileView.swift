@@ -2,8 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct ProfileView: View {
+    @StateObject private var appState = AppState.shared
     @State private var showLoginOptions = false
-    @State private var isPremium = false
     @State private var showPremiumOptions = false
     @Query private var checks: [Check]
     @State private var showingCamera = false
@@ -11,15 +11,13 @@ struct ProfileView: View {
     @State private var capturedImage: UIImage? = nil
     @State private var isImageReady = false
     @State private var isAnalyzing = false
+    @State private var showPremiumView = false
     
     private let freeChecksLimit = 5
-    private let remainingFreeChecks: Int
     
-    init() {
+    private var remainingFreeChecks: Int {
         let modelContainer = try? ModelContainer(for: Check.self)
-        let descriptor = FetchDescriptor<Check>()
-        let count = try? modelContainer?.mainContext.fetchCount(descriptor) ?? 0
-        remainingFreeChecks = max(0, freeChecksLimit - (count ?? 0))
+        return CheckLimitManager.shared.remainingChecks(modelContainer: modelContainer)
     }
     
     var body: some View {
@@ -31,15 +29,15 @@ struct ProfileView: View {
                             .fill(Color.gray.opacity(0.2))
                             .frame(width: 60, height: 60)
                             .overlay(
-                                Image(systemName: "person.fill")
+                                Image(systemName: appState.isUserLoggedIn ? "person.circle.fill" : "person.fill")
                                     .font(.system(size: 30))
                                     .foregroundColor(.gray)
                             )
                         
                         VStack(alignment: .leading) {
-                            Text("Invité")
+                            Text(appState.isUserLoggedIn ? "Utilisateur" : "Invité")
                                 .font(.headline)
-                            Text("Non connecté")
+                            Text(appState.isUserLoggedIn ? "Connecté" : "Non connecté")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -47,9 +45,14 @@ struct ProfileView: View {
                         Spacer()
                         
                         Button {
-                            showLoginOptions = true
+                            if appState.isUserLoggedIn {
+                                // Se déconnecter
+                                appState.isUserLoggedIn = false
+                            } else {
+                                showLoginOptions = true
+                            }
                         } label: {
-                            Text("Se connecter")
+                            Text(appState.isUserLoggedIn ? "Se déconnecter" : "Se connecter")
                                 .font(.subheadline)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
@@ -64,18 +67,18 @@ struct ProfileView: View {
                 Section(header: Text("Abonnement")) {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text(isPremium ? "Premium" : "Gratuit")
+                            Text(appState.isPremium ? "Premium" : "Gratuit")
                                 .font(.headline)
-                                .foregroundColor(isPremium ? .yellow : .primary)
+                                .foregroundColor(appState.isPremium ? .yellow : .primary)
                             
-                            if isPremium {
+                            if appState.isPremium {
                                 Image(systemName: "crown.fill")
                                     .foregroundColor(.yellow)
                             }
                             
                             Spacer()
                             
-                            if !isPremium {
+                            if !appState.isPremium {
                                 Button {
                                     showPremiumOptions = true
                                 } label: {
@@ -90,7 +93,7 @@ struct ProfileView: View {
                             }
                         }
                         
-                        if !isPremium {
+                        if !appState.isPremium {
                             Text("Chèques restants : \(remainingFreeChecks)/\(freeChecksLimit)")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -103,10 +106,10 @@ struct ProfileView: View {
                     }
                     .padding(.vertical, 6)
                     
-                    if !isPremium {
-                        LimitedFeatureRow(title: "Export PDF et Excel", isPremium: isPremium)
-                        LimitedFeatureRow(title: "Chèques illimités", isPremium: isPremium)
-                        LimitedFeatureRow(title: "Synchronisation cloud", isPremium: isPremium)
+                    if !appState.isPremium {
+                        LimitedFeatureRow(title: "Export PDF et Excel", isPremium: appState.isPremium)
+                        LimitedFeatureRow(title: "Chèques illimités", isPremium: appState.isPremium)
+                        LimitedFeatureRow(title: "Synchronisation cloud", isPremium: appState.isPremium)
                     } else {
                         PremiumFeatureRow(title: "Export PDF et Excel", isActive: true)
                         PremiumFeatureRow(title: "Chèques illimités", isActive: true)
@@ -149,10 +152,14 @@ struct ProfileView: View {
             }
             .navigationTitle("Profil")
             .sheet(isPresented: $showLoginOptions) {
-                LoginOptionsView()
+                LoginOptionsView(onLoginSuccess: {
+                    appState.isUserLoggedIn = true
+                })
             }
             .sheet(isPresented: $showPremiumOptions) {
-                PremiumOptionsView()
+                PremiumOptionsView(onPremiumSuccess: {
+                    appState.isPremium = true
+                })
             }
             .sheet(isPresented: $showingCamera) {
                 CameraCaptureView { image in
@@ -167,6 +174,11 @@ struct ProfileView: View {
             .sheet(isPresented: $isImageReady) {
                 if let image = capturedImage {
                     CheckFormView(image: image)
+                }
+            }
+            .fullScreenCover(isPresented: $showPremiumView) {
+                NavigationStack {
+                    PremiumBlockView()
                 }
             }
             .overlay {
@@ -200,6 +212,16 @@ struct ProfileView: View {
             return
         }
         
+        // Vérifier si l'utilisateur peut ajouter un nouveau chèque
+        let modelContainer = try? ModelContainer(for: Check.self)
+        let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+        
+        if !canAddMoreChecks {
+            isAnalyzing = false
+            showPremiumView = true
+            return
+        }
+        
         DispatchQueue.main.async {
             let imageCopy = image.copy() as! UIImage
             self.capturedImage = imageCopy
@@ -207,160 +229,6 @@ struct ProfileView: View {
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 self.isImageReady = true
-            }
-        }
-    }
-}
-
-struct LoginOptionsView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Image(systemName: "person.crop.circle.fill.badge.checkmark")
-                    .font(.system(size: 60))
-                    .foregroundColor(.blue)
-                    .padding(.top, 40)
-                
-                Text("Connectez-vous pour synchroniser vos chèques")
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                
-                VStack(spacing: 16) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Image(systemName: "apple.logo")
-                                .font(.title3)
-                            Text("Continuer avec Apple")
-                                .font(.headline)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.black)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                    }
-                    
-                    Button {
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Image(systemName: "g.circle.fill")
-                                .font(.title3)
-                                .foregroundColor(.red)
-                            Text("Continuer avec Google")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
-                    }
-                }
-                .padding(.horizontal, 24)
-                
-                Spacer()
-            }
-            .navigationTitle("Connexion")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fermer") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct PremiumOptionsView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Image(systemName: "crown.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(.yellow)
-                    .padding(.top, 40)
-                
-                Text("ScanCheck Premium")
-                    .font(.title)
-                    .fontWeight(.bold)
-                
-                Text("Accédez à toutes les fonctionnalités")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                VStack(alignment: .leading, spacing: 16) {
-                    PremiumFeatureItem(icon: "infinity", title: "Chèques illimités", description: "Numérisez et stockez autant de chèques que vous le souhaitez")
-                    
-                    PremiumFeatureItem(icon: "square.and.arrow.up", title: "Exportation", description: "Exportez vos données au format PDF et Excel")
-                    
-                    PremiumFeatureItem(icon: "icloud", title: "Synchronisation", description: "Synchronisez vos chèques sur tous vos appareils")
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
-                .padding(.horizontal)
-                
-                VStack(spacing: 16) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Text("Abonnement mensuel")
-                                .font(.headline)
-                            Spacer()
-                            Text("4,99 €/mois")
-                                .font(.headline)
-                        }
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                    }
-                    
-                    Button {
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Text("Abonnement annuel")
-                                .font(.headline)
-                            Spacer()
-                            Text("39,99 €/an")
-                                .font(.headline)
-                        }
-                        .padding()
-                        .background(Color.black)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                    }
-                }
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                Text("Paiement unique. Vous pouvez annuler à tout moment.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.bottom)
-            }
-            .navigationTitle("Premium")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fermer") {
-                        dismiss()
-                    }
-                }
             }
         }
     }
@@ -401,30 +269,6 @@ struct PremiumFeatureRow: View {
             Text(title)
             
             Spacer()
-        }
-    }
-}
-
-struct PremiumFeatureItem: View {
-    let icon: String
-    let title: String
-    let description: String
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .frame(width: 24)
-                .foregroundColor(.blue)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
         }
     }
 }

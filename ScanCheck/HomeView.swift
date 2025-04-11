@@ -13,6 +13,7 @@ struct HomeView: View {
     @State private var capturedImage: UIImage? = nil
     @State private var isImageReady = false
     @State private var isAnalyzing = false
+    @State private var showPremiumView = false
     
     var body: some View {
         NavigationStack {
@@ -20,7 +21,14 @@ struct HomeView: View {
                 VStack {
                     if checks.isEmpty {
                         EmptyChecksView(onAddButtonTapped: {
-                            showingImagePicker = true
+                            let modelContainer = try? ModelContainer(for: Check.self)
+                            let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+                            
+                            if canAddMoreChecks {
+                                showingImagePicker = true
+                            } else {
+                                showPremiumView = true
+                            }
                         })
                     } else {
                         List {
@@ -111,6 +119,11 @@ struct HomeView: View {
                     CheckFormView(image: image)
                 }
             }
+            .fullScreenCover(isPresented: $showPremiumView) {
+                NavigationStack {
+                    PremiumBlockView()
+                }
+            }
             .overlay {
                 if isAnalyzing {
                     Color.black.opacity(0.5)
@@ -155,6 +168,16 @@ struct HomeView: View {
         
         guard let image = image else {
             isAnalyzing = false
+            return
+        }
+        
+        // Vérifier si l'utilisateur peut ajouter un nouveau chèque
+        let modelContainer = try? ModelContainer(for: Check.self)
+        let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+        
+        if !canAddMoreChecks {
+            isAnalyzing = false
+            showPremiumView = true
             return
         }
         

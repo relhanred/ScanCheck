@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct TabBarView: View {
     @State private var selectedTab: Tab = .home
@@ -35,9 +36,25 @@ struct TabBarView: View {
             .ignoresSafeArea(edges: .bottom)
             
             CustomTabBar(selectedTab: $selectedTab, namespace: tabBarNamespace, showCamera: {
-                showingCamera = true
+                let modelContainer = try? ModelContainer(for: Check.self)
+                let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+                
+                if canAddMoreChecks {
+                    showingCamera = true
+                } else {
+                    // Si la limite est atteinte, montrer la vue premium
+                    showPremiumView = true
+                }
             }, showImagePicker: {
-                showingImagePicker = true
+                let modelContainer = try? ModelContainer(for: Check.self)
+                let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+                
+                if canAddMoreChecks {
+                    showingImagePicker = true
+                } else {
+                    // Si la limite est atteinte, montrer la vue premium
+                    showPremiumView = true
+                }
             })
         }
         .sheet(isPresented: $showingCamera) {
@@ -53,6 +70,11 @@ struct TabBarView: View {
         .sheet(isPresented: $isImageReady) {
             if let image = capturedImage {
                 CheckFormView(image: image)
+            }
+        }
+        .fullScreenCover(isPresented: $showPremiumView) {
+            NavigationStack {
+                PremiumBlockView()
             }
         }
         .overlay {
@@ -76,6 +98,8 @@ struct TabBarView: View {
             }
         }
     }
+    
+    @State private var showPremiumView = false
     
     private func handleCapturedImage(_ image: UIImage?) {
         isAnalyzing = true
@@ -104,13 +128,22 @@ struct CustomTabBar: View {
     var showCamera: () -> Void
     var showImagePicker: () -> Void
     @State private var showingAddOptions = false
+    @State private var navigateToPremium = false
     
     var body: some View {
         HStack(spacing: 0) {
             ForEach([TabBarView.Tab.home, .stats, .add, .export, .profile], id: \.self) { tab in
                 Button {
                     if tab == .add {
-                        showingAddOptions = true
+                        let modelContainer = try? ModelContainer(for: Check.self)
+                        let isPremium = AppState.shared.isPremium
+                        let canAddMoreChecks = isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+                        
+                        if canAddMoreChecks {
+                            showingAddOptions = true
+                        } else {
+                            navigateToPremium = true
+                        }
                     } else {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             selectedTab = tab
@@ -191,6 +224,11 @@ struct CustomTabBar: View {
                     .cancel()
                 ]
             )
+        }
+        .fullScreenCover(isPresented: $navigateToPremium) {
+            NavigationStack {
+                PremiumBlockView()
+            }
         }
     }
 }

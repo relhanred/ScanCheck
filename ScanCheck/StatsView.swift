@@ -10,13 +10,22 @@ struct StatsView: View {
     @State private var capturedImage: UIImage? = nil
     @State private var isImageReady = false
     @State private var isAnalyzing = false
+    @StateObject private var appState = AppState.shared
+    @State private var showPremiumView = false
     
     var body: some View {
         NavigationStack {
             Group {
                 if checks.isEmpty {
                     EmptyChecksView(onAddButtonTapped: {
-                        showingImagePicker = true
+                        let modelContainer = try? ModelContainer(for: Check.self)
+                        let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
+                        
+                        if canAddMoreChecks {
+                            showingImagePicker = true
+                        } else {
+                            showPremiumView = true
+                        }
                     })
                 } else {
                     VStack {
@@ -78,6 +87,11 @@ struct StatsView: View {
                     .frame(width: 250, height: 150)
                     .background(Color.black.opacity(0.8))
                     .cornerRadius(15)
+                }
+            }
+            .fullScreenCover(isPresented: $showPremiumView) {
+                NavigationStack {
+                    PremiumBlockView()
                 }
             }
         }
