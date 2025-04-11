@@ -3,8 +3,8 @@ import SwiftData
 
 struct ExportView: View {
     @Query private var checks: [Check]
-    @State private var showingPremiumAlert = false
-    @State private var selectedFormat: ExportFormat?
+    @State private var showingExportPDF = false
+    @State private var showingExportExcel = false
     @State private var showingCamera = false
     @State private var showingImagePicker = false
     @State private var capturedImage: UIImage? = nil
@@ -46,8 +46,11 @@ struct ExportView: View {
                     List {
                         Section(header: Text("Options d'exportation")) {
                             Button {
-                                selectedFormat = .pdf
-                                showingPremiumAlert = true
+                                if appState.isPremium {
+                                    showingExportPDF = true
+                                } else {
+                                    showPremiumView = true
+                                }
                             } label: {
                                 HStack {
                                     Image(systemName: "doc.richtext")
@@ -65,14 +68,19 @@ struct ExportView: View {
                                     
                                     Spacer()
                                     
-                                    Image(systemName: "crown.fill")
-                                        .foregroundColor(.yellow)
+                                    if !appState.isPremium {
+                                        Image(systemName: "crown.fill")
+                                            .foregroundColor(.yellow)
+                                    }
                                 }
                             }
                             
                             Button {
-                                selectedFormat = .excel
-                                showingPremiumAlert = true
+                                if appState.isPremium {
+                                    showingExportExcel = true
+                                } else {
+                                    showPremiumView = true
+                                }
                             } label: {
                                 HStack {
                                     Image(systemName: "tablecells")
@@ -90,8 +98,10 @@ struct ExportView: View {
                                     
                                     Spacer()
                                     
-                                    Image(systemName: "crown.fill")
-                                        .foregroundColor(.yellow)
+                                    if !appState.isPremium {
+                                        Image(systemName: "crown.fill")
+                                            .foregroundColor(.yellow)
+                                    }
                                 }
                             }
                         }
@@ -121,18 +131,6 @@ struct ExportView: View {
                 }
             }
             .navigationTitle("Export")
-            .alert("Fonctionnalité Premium", isPresented: $showingPremiumAlert) {
-                Button("S'abonner", role: .none) {
-                    showPremiumView = true
-                }
-                Button("Plus tard", role: .cancel) {}
-            } message: {
-                if selectedFormat == .pdf {
-                    Text("L'export PDF est disponible avec l'abonnement ScanCheck Premium.")
-                } else {
-                    Text("L'export Excel est disponible avec l'abonnement ScanCheck Premium.")
-                }
-            }
             .sheet(isPresented: $showingCamera) {
                 CameraCaptureView { image in
                     handleCapturedImage(image)
@@ -147,6 +145,12 @@ struct ExportView: View {
                 if let image = capturedImage {
                     CheckFormView(image: image)
                 }
+            }
+            .sheet(isPresented: $showingExportPDF) {
+                PDFExportView()
+            }
+            .sheet(isPresented: $showingExportExcel) {
+                ExcelExportView()
             }
             .fullScreenCover(isPresented: $showPremiumView) {
                 NavigationStack {
@@ -184,7 +188,6 @@ struct ExportView: View {
             return
         }
         
-        // Vérifier si l'utilisateur peut ajouter un nouveau chèque
         let modelContainer = try? ModelContainer(for: Check.self)
         let canAddMoreChecks = appState.isPremium || CheckLimitManager.shared.canAddMoreChecks(modelContainer: modelContainer)
         

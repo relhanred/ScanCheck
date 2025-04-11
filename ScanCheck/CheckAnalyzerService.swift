@@ -56,7 +56,46 @@ class CheckAnalyzerService {
 
         - **pay_to** : Nom de la personne ou entité à qui le chèque est adressé. Ce nom suit souvent l’expression “à l’ordre de” ou “à”.
 
-        - **bank_name** : Nom de la banque, généralement imprimé en haut à gauche ou en bas du chèque.
+        - **bank_name** : Nom de la banque, généralement imprimé en haut à gauche ou en bas du chèque. Utilise la liste ci-dessous pour t’aider à reconnaître le bon nom :
+
+        #### Liste des banques françaises émettant des chèques :
+        - BNP Paribas  
+        - Société Générale  
+        - Crédit Agricole  
+        - Crédit Mutuel  
+        - CIC  
+        - La Banque Postale  
+        - LCL  
+        - Banque Populaire  
+        - Caisse d'Épargne  
+        - Boursorama Banque  
+        - Hello Bank!  
+        - Monabanq  
+        - AXA Banque  
+        - HSBC France  
+        - Orange Bank  
+        - Fortuneo  
+        - BforBank  
+        - Banque Palatine  
+        - Banque Courtois  
+        - Banque Kolb  
+        - Banque Nuger  
+        - Banque Rhône-Alpes  
+        - Banque Tarneaud  
+        - Crédit du Nord  
+        - Milleis Banque  
+        - Banque Martin Maurel  
+        - Banque BCP  
+        - Banque de Savoie  
+        - Banque Edel  
+        - Crédit Maritime  
+        - Crédit Coopératif  
+        - Neuflize OBC  
+        - UBS France  
+        - Barclays France  
+        - Banque Transatlantique  
+        - Oddo BHF  
+        - Lazard Frères Banque
 
         - **cheque_number** : Numéro de chèque (7 chiffres), extrait **uniquement** depuis le **premier groupe de chiffres à gauche dans la bande CMC7** (ligne MICR en bas du chèque). Ignore tous les autres groupes et les symboles.
 
@@ -67,7 +106,8 @@ class CheckAnalyzerService {
         ### Contraintes importantes :
 
         - Concentre toi bien sur la lecture du numéro de chèque, n'hésite pas à faire plusieurs scan et à comparer les résultats les plus probables.
-        - Le numéro de chèque est toujours un groupe de **7 chiffres consécutifs**, situé **à gauche** de la bande CMC7 (ligne magnétique en bas du chèque). **Ne pas tenir compte des autres groupes à droite.**
+        - Le numéro de chèque est toujours un groupe de **7 chiffres consécutifs**, situé dans la bande CMC7.
+        - Si le nom de la banque est partiellement lisible, compare avec les noms de la liste pour proposer le plus probable.
         - Si une information est manquante, partiellement illisible ou absente, remplace-la par `null`.
 
         Ta réponse doit être **exclusivement** le JSON final, sans aucun commentaire ou explication.
